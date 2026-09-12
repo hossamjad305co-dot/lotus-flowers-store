@@ -1,0 +1,20 @@
+{
+  "name": "lotus-flowers-store-eg",
+  "version": "1.0.0",
+  "description": "منصة متجر زهور اللوتس (Lotus Flowers EG) - المنيل، القاهرة | مستوحاة من فلاورد",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "flowers",
+    "floward",
+    "egypt",
+    "cairo",
+    "vodafone-cash",
+    "ecommerce"
+  ],
+  "author": "Lotus Flowers Team",
+  "license": "MIT"
+}

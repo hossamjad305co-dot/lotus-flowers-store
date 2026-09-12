@@ -1,0 +1,466 @@
+/* أنماط وتنسيقات متجر زهور اللوتس (Lotus Flowers EG) */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Amiri:ital,wght@0,700;1,400&display=swap');
+
+:root {
+  --font-cairo: 'Cairo', sans-serif;
+  --font-amiri: 'Amiri', serif;
+  --color-primary: #8b1d3d; /* نبيتي ملكي راقي مستوحى من ورود اللوتس */
+  --color-primary-dark: #631229;
+  --color-primary-light: #fbebf0;
+  --color-gold: #c69239;
+  --color-gold-light: #f9f4ea;
+  --color-dark: #1b1e23;
+  --color-gray-soft: #f8fafc;
+}
+
+body {
+  font-family: var(--font-cairo);
+  background-color: #fdfaf7;
+  color: #2b2b2b;
+  direction: rtl;
+  text-align: right;
+  overflow-x: hidden;
+}
+
+/* خطوط فخمة للعناوين */
+.font-amiri {
+  font-family: var(--font-amiri);
+}
+
+/* تدرجات ألوان الورد والذهب */
+.bg-rose-luxury {
+  background: linear-gradient(135deg, #8b1d3d 0%, #581024 100%);
+}
+
+.bg-gold-gradient {
+  background: linear-gradient(135deg, #d4a359 0%, #b8822f 100%);
+}
+
+.text-gold {
+  color: #c69239;
+}
+
+.border-gold {
+  border-color: #d4a359;
+}
+
+/* شريط إشعار علوي متحرك بحركة هادئة */
+.marquee-wrapper {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* بطاقات المنتجات وتأثير الظلال */
+.product-card {
+  transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+  border: 1px solid rgba(229, 231, 235, 0.7);
+}
+
+.product-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 30px -10px rgba(139, 29, 61, 0.12), 0 10px 15px -5px rgba(0, 0, 0, 0.04);
+  border-color: #f5c7d5;
+}
+
+.product-card .img-zoom {
+  transition: transform 0.5s ease;
+}
+
+.product-card:hover .img-zoom {
+  transform: scale(1.06);
+}
+
+/* وسوم الألوان */
+.color-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.color-dot-red { background-color: #dc2626; }
+.color-dot-pink { background-color: #ec4899; }
+.color-dot-white { background-color: #ffffff; border: 1px solid #d1d5db; }
+.color-dot-purple { background-color: #8b5cf6; }
+.color-dot-yellow { background-color: #eab308; }
+.color-dot-mixed { background: linear-gradient(45deg, #ec4899, #eab308, #8b5cf6); }
+
+/* أزرار مخصصة بتأثير اللمس */
+.btn-primary {
+  background: linear-gradient(135deg, #8b1d3d 0%, #68142c 100%);
+  color: #ffffff;
+  transition: all 0.25s ease;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #a12347 0%, #7c1835 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px -4px rgba(139, 29, 61, 0.35);
+}
+
+.btn-gold {
+  background: linear-gradient(135deg, #c69239 0%, #a97424 100%);
+  color: #ffffff;
+  transition: all 0.25s ease;
+}
+
+.btn-gold:hover {
+  background: linear-gradient(135deg, #d6a147 0%, #bd842c 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 16px -4px rgba(198, 146, 57, 0.35);
+}
+
+/* خطوات التتبع المرئية (Stepper) */
+.stepper-step.active .step-icon {
+  background-color: #8b1d3d;
+  color: #ffffff;
+  border-color: #8b1d3d;
+  box-shadow: 0 0 0 4px #fbebf0;
+}
+
+.stepper-step.completed .step-icon {
+  background-color: #059669;
+  color: #ffffff;
+  border-color: #059669;
+}
+
+.stepper-step.completed .step-line {
+  background-color: #059669;
+}
+
+/* شريط تمرير مخصص ناعم */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+  background: #c8a3af;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #8b1d3d;
+}
+
+/* أنيميشن النبض لإشعار التوصيل المباشر */
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.04); }
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2.5s infinite ease-in-out;
+}
+
+/* كارت رسالة الإهداء */
+.gift-card-preview {
+  background: #fffdf9;
+  border: 1px dashed #d4a359;
+  box-shadow: inset 0 0 20px rgba(212, 163, 89, 0.08);
+}
+
+/* شارات الحالة في لوحة التحكم */
+.badge-pending {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+.badge-confirmed {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+.badge-preparing {
+  background-color: #e0e7ff;
+  color: #3730a3;
+}
+.badge-delivering {
+  background-color: #fed7aa;
+  color: #9a3412;
+}
+.badge-delivered {
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+/* التحكم بدرج السلة */
+#cart-drawer {
+  transform: translateX(-100%) !important;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+#cart-drawer.open {
+  transform: translateX(0) !important;
+}
+
+/* مودال خلفية ضبابية */
+.backdrop-blur-custom {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* أيقونات إنستغرام وفيسبوك المميزة الرسمية (Distinct Social Badges) */
+.social-badge-instagram {
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+  color: #ffffff !important;
+  box-shadow: 0 4px 10px rgba(220, 39, 67, 0.3);
+  transition: all 0.25s ease;
+}
+.social-badge-instagram:hover {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 6px 14px rgba(220, 39, 67, 0.45);
+}
+
+.social-badge-facebook {
+  background-color: #1877F2 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 10px rgba(24, 119, 242, 0.3);
+  transition: all 0.25s ease;
+}
+.social-badge-facebook:hover {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 6px 14px rgba(24, 119, 242, 0.45);
+}
+
+/* بطاقات ودوائر التصنيفات على نمط فلاورد (Floward-Style Circles) */
+.floward-circle-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  min-width: 78px;
+}
+.floward-circle-item:hover {
+  transform: translateY(-4px);
+}
+.floward-circle-img-wrap {
+  width: 72px;
+  height: 72px;
+  border-radius: 9999px;
+  padding: 3px;
+  background: linear-gradient(135deg, #fdf2f4 0%, #f7d6e0 100%);
+  border: 2px solid #e8b4c4;
+  box-shadow: 0 4px 12px rgba(139, 29, 61, 0.08);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  position: relative;
+}
+.floward-circle-item:hover .floward-circle-img-wrap {
+  border-color: #8b1d3d;
+  box-shadow: 0 6px 16px rgba(139, 29, 61, 0.2);
+  transform: scale(1.06);
+}
+.floward-circle-item.active .floward-circle-img-wrap {
+  border-color: #8b1d3d;
+  box-shadow: 0 0 0 3px rgba(139, 29, 61, 0.25);
+}
+.floward-circle-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  object-fit: cover;
+}
+.floward-circle-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #374151;
+  text-align: center;
+  line-height: 1.25;
+  transition: color 0.2s ease;
+  white-space: nowrap;
+}
+.floward-circle-item:hover .floward-circle-label {
+  color: #8b1d3d;
+}
+
+/* مربعات الاختيار المتعدد (Square Multi-Select Checkboxes) */
+.filter-checkbox-square {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 1.5px solid #d1d5db;
+  border-radius: 0.35rem;
+  outline: none;
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  transition: all 0.2s ease;
+  background-color: #ffffff;
+}
+.filter-checkbox-square:hover {
+  border-color: #8b1d3d;
+}
+.filter-checkbox-square:checked {
+  background-color: #8b1d3d;
+  border-color: #8b1d3d;
+}
+.filter-checkbox-square:checked::before {
+  content: "";
+  width: 0.55rem;
+  height: 0.35rem;
+  border-left: 2px solid white;
+  border-bottom: 2px solid white;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+
+/* حبات اختيار الحجم في بطاقة الكتالوج (Card Size Pills) */
+.card-size-pill {
+  transition: all 0.2s ease;
+  font-size: 0.68rem;
+}
+.card-size-pill:hover {
+  border-color: #8b1d3d;
+}
+.card-size-pill.active {
+  background-color: #fbebf0;
+  border-color: #8b1d3d;
+  color: #631229;
+  font-weight: 800;
+  box-shadow: 0 0 0 1px #8b1d3d;
+}
+
+/* ==================== مجلة المتجر التفاعلية الفاخرة (Hero Interactive Magazine) ==================== */
+.magazine-slider-wrap {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle at 80% 20%, #4a0e1c 0%, #29040e 60%, #170107 100%);
+  color: #ffffff;
+  min-height: 480px;
+}
+@media (min-width: 1024px) {
+  .magazine-slider-wrap {
+    min-height: 520px;
+  }
+}
+
+.magazine-slide {
+  opacity: 0;
+  visibility: hidden;
+  position: absolute;
+  inset: 0;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: scale(0.98);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.magazine-slide.active {
+  opacity: 1;
+  visibility: visible;
+  position: relative;
+  transform: scale(1);
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.magazine-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s ease;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+.magazine-nav-btn:hover {
+  background: #c59b27;
+  border-color: #e5b945;
+  color: #ffffff;
+  transform: translateY(-50%) scale(1.1);
+  box-shadow: 0 10px 28px rgba(197, 155, 39, 0.45);
+}
+.magazine-nav-btn.prev {
+  right: 18px;
+}
+.magazine-nav-btn.next {
+  left: 18px;
+}
+
+.magazine-dots-wrap {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.magazine-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+.magazine-dot.active {
+  width: 30px;
+  background: #c59b27;
+  border-color: #e5b945;
+  box-shadow: 0 0 10px rgba(197, 155, 39, 0.6);
+}
+
+.magazine-cover-frame {
+  position: relative;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+  border: 3px solid rgba(255, 255, 255, 0.18);
+  transition: transform 0.4s ease;
+}
+.magazine-cover-frame:hover {
+  transform: translateY(-4px);
+}
+
+/* شارات تحريرية للمجلة */
+.magazine-issue-badge {
+  font-family: 'Amiri', serif;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  color: #fce7f3;
+  border-bottom: 1px solid rgba(252, 231, 243, 0.3);
+  display: inline-block;
+  padding-bottom: 2px;
+}
+
+/* شرائح الاختيار المتعدد في نماذج الإدارة (Admin Multi-Select Tags) */
+.admin-multiselect-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.65rem;
+  border: 1.5px solid #e5e7eb;
+  background-color: #f9fafb;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+.admin-multiselect-chip:hover {
+  border-color: #8b1d3d;
+  background-color: #fff5f7;
+}
+.admin-multiselect-chip.selected {
+  border-color: #8b1d3d;
+  background-color: #fbebf0;
+  color: #631229;
+  font-weight: 700;
+}
+
