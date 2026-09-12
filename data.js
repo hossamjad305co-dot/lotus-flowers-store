@@ -12,6 +12,8 @@ const DEFAULT_STORE_INFO = {
   googleMapsEmbed: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3454.0894082855586!2d31.2227188!3d30.0342674!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x145846d0a793a343%3A0x7e8346cb39c18511!2z2LTYp9ix2Lkg2LPYudmK2K8g2LDZiCDYp9mE2YHZgtin2LHYjCDYp9mE2YXZhtmK2YTYjCDZhdit2KfZgdi42Kkg2KfZhNmC2KfZh9ix2KnYjCDZhdi12LE!5e0!3m2!1sar!2seg!4v1710000000000!5m2!1sar!2seg",
   facebookUrl: "https://www.facebook.com/share/16LyEtG1Ys",
   instagramUrl: "https://www.instagram.com/lotus_flowers_eg/",
+  announcementText: "توصيل سريع وطازج بعناية فائقة في نفس اليوم لجميع مناطق القاهرة والجيزة",
+  locationUrl: "https://www.google.com/maps/search/?api=1&query=3%20Saeed%20Zulfiqar%20St%20Al%20Manial%20Cairo",
   openingHours: "يومياً من 10:00 صباحاً حتى 12:00 منتصف الليل",
   deliveryAreas: [
     { name: "المنيل ومصر القديمة", fee: 35, time: "خلال ساعتين" },
@@ -79,7 +81,7 @@ const INITIAL_MAGAZINE_SLIDES = [
     issue: "إصدار العشاق والأفراح",
     badge: "الأكثر طلباً ومبيعاً",
     title: "بوكيه الحب الملكي الفاخر (100 وردة)",
-    subtitle: "أجود أنواع الجوري الأحمر المخملي بتغليف أسود ملكي وشريط حريري فاخر للتعبير عن أصدق المشاعر مع توصيل مبرد وسريع.",
+    subtitle: "أجود أنواع الجوري الأحمر المخملي بتغليف أسود ملكي وشريط حريري فاخر للتعبير عن أصدق المشاعر مع توصيل سريع وطازج بعناية فائقة.",
     image: "assets/products/p02.jpg",
     skuTag: "كود: LV-201",
     priceTag: "تبدأ من 490 ج.م",

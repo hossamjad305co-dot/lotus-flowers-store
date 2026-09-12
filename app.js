@@ -100,6 +100,16 @@
     selectedReceiptImage: null
   };
 
+  // ضمان تحديث نص الشريط الترويجي واللوكيشن من الإعدادات الافتراضية
+  if (!state.storeInfo.announcementText || state.storeInfo.announcementText.includes('مبرد')) {
+    state.storeInfo.announcementText = DEFAULT_STORE_INFO.announcementText || "توصيل سريع وطازج بعناية فائقة في نفس اليوم لجميع مناطق القاهرة والجيزة";
+    saveState('storeInfo');
+  }
+  if (!state.storeInfo.locationUrl) {
+    state.storeInfo.locationUrl = DEFAULT_STORE_INFO.locationUrl || "https://www.google.com/maps";
+    saveState('storeInfo');
+  }
+
   // مساعدات استخراج المعرف والاسم للتصنيفات والخصائص
   function getAttrId(item) {
     if (!item) return '';
@@ -139,6 +149,49 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#039;');
+  }
+
+  // معالجة وتحليل رابط اللوكيشن أو كود الخريطة بمرونة تامة
+  function parseGoogleMapsInput(input) {
+    if (!input) {
+      return {
+        embedUrl: DEFAULT_STORE_INFO.googleMapsEmbed,
+        locationUrl: DEFAULT_STORE_INFO.locationUrl || 'https://www.google.com/maps'
+      };
+    }
+    const str = String(input).trim();
+    
+    // 1. إذا كان كود تضمين كامل <iframe>
+    const iframeSrcMatch = str.match(/src=["']([^"']+)["']/i);
+    if (iframeSrcMatch) {
+      const srcUrl = iframeSrcMatch[1];
+      return {
+        embedUrl: srcUrl,
+        locationUrl: srcUrl
+      };
+    }
+
+    // 2. إذا كان رابط تضمين مباشر embed
+    if (str.includes('/maps/embed') || str.includes('output=embed')) {
+      return {
+        embedUrl: str,
+        locationUrl: str
+      };
+    }
+
+    // 3. إذا كان رابط خرائط جوجل عادي أو رابط قصير maps.app.goo.gl أو رابط ويب
+    if (str.startsWith('http://') || str.startsWith('https://')) {
+      return {
+        embedUrl: `https://maps.google.com/maps?q=${encodeURIComponent(str)}&output=embed`,
+        locationUrl: str
+      };
+    }
+
+    // 4. إذا كان اسم مكان أو إحداثيات أو عنوان نصي
+    return {
+      embedUrl: `https://maps.google.com/maps?q=${encodeURIComponent(str)}&output=embed`,
+      locationUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(str)}`
+    };
   }
 
   // إشعار منبثق ناعم
@@ -3891,40 +3944,85 @@
           </form>
         </div>
 
-        <!-- 2. تعديل بيانات المتجر والتواصل والسوشيال ميديا -->
+        <!-- 2. تعديل بيانات المتجر والتواصل والشريط الترويجي وموقع اللوكيشن -->
         <form onsubmit="window.lotusApp.handleSaveCms(event)" class="space-y-4 text-xs">
-          <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-            <h5 class="font-bold text-rose-900 text-sm mb-3 flex items-center gap-2">
+          <div class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+            <h5 class="font-bold text-rose-900 text-sm flex items-center gap-2">
               <i data-lucide="store" class="w-4 h-4"></i>
-              <span>بيانات المتجر والتواصل الأساسية:</span>
+              <span>بيانات المتجر والشريط الترويجي ومقر المتجر والخريطة:</span>
             </h5>
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+
+            <!-- نص الشريط الترويجي العلوي -->
+            <div class="p-3.5 bg-amber-50/70 rounded-xl border border-amber-200">
+              <label class="block font-bold text-rose-950 mb-1 flex items-center gap-1.5">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-600"></i>
+                <span>نص الشريط الترويجي العلوي للمتجر (Announcement Bar) *</span>
+              </label>
+              <input type="text" id="cms-announcement" value="${escapeHtml(state.storeInfo.announcementText || 'توصيل سريع وطازج بعناية فائقة في نفس اليوم لجميع مناطق القاهرة والجيزة')}" class="w-full p-2.5 rounded-lg border border-gray-300 font-bold text-gray-900 focus:border-rose-800 focus:outline-none">
+              <p class="text-[11px] text-gray-500 mt-1">النص الترويجي الظاهر في أعلى شريط بالموقع لجميع الزوار (يمكنك تعديله في أي لحظة)</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label class="block font-semibold mb-1">اسم المتجر الرسمي</label>
+                <label class="block font-semibold mb-1">اسم المتجر الرسمي *</label>
                 <input type="text" id="cms-name" value="${escapeHtml(state.storeInfo.name)}" class="w-full p-2.5 rounded-lg border border-gray-300">
               </div>
               <div>
-                <label class="block font-semibold mb-1">رقم محفظة فودافون كاش المعتمدة</label>
+                <label class="block font-semibold mb-1">رقم محفظة فودافون كاش المعتمدة *</label>
                 <input type="text" id="cms-vf" value="${escapeHtml(state.storeInfo.vodafoneCash)}" class="w-full p-2.5 rounded-lg border border-gray-300 font-mono font-bold">
               </div>
               <div>
-                <label class="block font-semibold mb-1">رقم الهاتف والواتساب</label>
+                <label class="block font-semibold mb-1">رقم الهاتف والواتساب *</label>
                 <input type="text" id="cms-ph" value="${escapeHtml(state.storeInfo.phone)}" class="w-full p-2.5 rounded-lg border border-gray-300 font-mono font-bold">
               </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label class="block font-semibold mb-1">العنوان الفعلي للمتجر</label>
-                <input type="text" id="cms-ad" value="${escapeHtml(state.storeInfo.address)}" class="w-full p-2.5 rounded-lg border border-gray-300">
+                <label class="block font-semibold mb-1">العنوان الفعلي المكتوب *</label>
+                <input type="text" id="cms-ad" value="${escapeHtml(state.storeInfo.address)}" placeholder="مثال: ٣ شارع سعيد ذو الفقار، المنيل، القاهرة" class="w-full p-2.5 rounded-lg border border-gray-300 font-bold">
               </div>
               <div>
-                <label class="block font-semibold mb-1">مواعيد وساعات العمل</label>
+                <label class="block font-semibold mb-1">مواعيد وساعات العمل *</label>
                 <input type="text" id="cms-hours" value="${escapeHtml(state.storeInfo.openingHours || 'يومياً من 10:00 ص حتى 12:00 منتصف الليل')}" class="w-full p-2.5 rounded-lg border border-gray-300">
               </div>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <!-- قسم تعديل اللوكيشن ورابط الخريطة التفاعلية -->
+            <div class="pt-3 border-t border-gray-100 space-y-3">
+              <div class="flex items-center justify-between">
+                <h6 class="font-bold text-rose-950 text-xs flex items-center gap-1.5">
+                  <i data-lucide="map-pin" class="w-4 h-4 text-rose-800"></i>
+                  <span>تعديل اللوكيشن وموقع المتجر على خرائط جوجل (Google Maps):</span>
+                </h6>
+                ${state.storeInfo.locationUrl ? `
+                  <a href="${state.storeInfo.locationUrl}" target="_blank" class="text-rose-800 hover:text-rose-950 font-bold flex items-center gap-1 text-[11px] underline">
+                    <span>اختبار رابط اللوكيشن الحالي ↗</span>
+                  </a>
+                ` : ''}
+              </div>
+
+              <div>
+                <label class="block font-semibold mb-1">رابط اللوكيشن الجديد أو كود الخريطة (Google Maps Link / Embed / Coordinates) *</label>
+                <input type="text" id="cms-map-input" value="${escapeHtml(state.storeInfo.locationInput || state.storeInfo.locationUrl || state.storeInfo.googleMapsEmbed)}" placeholder="الصق أي رابط من خرائط جوجل https://maps.app.goo.gl/... أو كود iframe أو عنوان الموقع" class="w-full p-2.5 rounded-lg border border-gray-300 text-left font-mono text-xs focus:border-rose-800 focus:outline-none">
+              </div>
+
+              <div class="bg-blue-50/70 p-3 rounded-xl border border-blue-200 text-blue-950 text-[11px] flex items-start gap-2">
+                <i data-lucide="info" class="w-4 h-4 text-blue-700 flex-shrink-0 mt-0.5"></i>
+                <div class="leading-relaxed">
+                  <strong>مرونة مطلقة لتغيير موقع المتجر:</strong> يمكنك إدخال أي شكل من أشكال الروابط — رابط مشاركة من تطبيق خرائط جوجل على هاتفك (مثل <code>https://maps.app.goo.gl/...</code>)، أو رابط لوكيشن من المتصفح، أو كود التضمين <code>&lt;iframe&gt;</code>، أو حتى اسم الموقع الجديد — وسيقوم المتجر فوراً بتحديث الخريطة التفاعلية وتوجيه الزبائن في صفحة اتصل بنا وتذييل الموقع.
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-bold text-gray-500 mb-1.5">معاينة الخريطة التفاعلية الحالية للمتجر:</label>
+                <div class="rounded-xl overflow-hidden border border-gray-200 h-48 bg-gray-100">
+                  <iframe src="${state.storeInfo.googleMapsEmbed}" width="100%" height="100%" style="border:0;" loading="lazy"></iframe>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100">
               <div>
                 <label class="block font-semibold mb-1">رابط صفحة إنستغرام الرسمية</label>
                 <input type="text" id="cms-ig" value="${escapeHtml(state.storeInfo.instagramUrl || 'https://www.instagram.com/lotus_flowers_eg/')}" class="w-full p-2.5 rounded-lg border border-gray-300 text-left font-mono">
@@ -3956,7 +4054,10 @@
             </div>
 
             <div class="flex justify-end pt-2">
-              <button type="submit" class="px-6 py-2.5 rounded-xl btn-primary font-bold shadow">حفظ إعدادات وبيانات المتجر</button>
+              <button type="submit" class="px-6 py-2.5 rounded-xl btn-primary font-bold shadow flex items-center gap-1.5">
+                <i data-lucide="save" class="w-4 h-4"></i>
+                <span>حفظ إعدادات المتجر وبيانات اللوكيشن</span>
+              </button>
             </div>
           </div>
         </form>
@@ -3994,14 +4095,38 @@
     const hoursInput = document.getElementById('cms-hours');
     const igInput = document.getElementById('cms-ig');
     const fbInput = document.getElementById('cms-fb');
+    const announcementInput = document.getElementById('cms-announcement');
+    const mapInput = document.getElementById('cms-map-input');
 
     if (nameInput) state.storeInfo.name = nameInput.value.trim();
     if (vfInput) state.storeInfo.vodafoneCash = vfInput.value.trim();
-    if (phInput) state.storeInfo.phone = phInput.value.trim();
+    if (phInput) {
+      state.storeInfo.phone = phInput.value.trim();
+      state.storeInfo.whatsapp = state.storeInfo.phone.replace(/[^0-9]/g, '');
+      if (state.storeInfo.whatsapp.startsWith('01')) {
+        state.storeInfo.whatsapp = '2' + state.storeInfo.whatsapp;
+      }
+    }
     if (adInput) state.storeInfo.address = adInput.value.trim();
     if (hoursInput) state.storeInfo.openingHours = hoursInput.value.trim();
     if (igInput) state.storeInfo.instagramUrl = igInput.value.trim();
     if (fbInput) state.storeInfo.facebookUrl = fbInput.value.trim();
+
+    if (announcementInput) {
+      state.storeInfo.announcementText = announcementInput.value.trim();
+      const topBar = document.getElementById('top-bar-announcement');
+      if (topBar) topBar.textContent = state.storeInfo.announcementText;
+    }
+
+    if (mapInput) {
+      const rawLoc = mapInput.value.trim();
+      if (rawLoc) {
+        state.storeInfo.locationInput = rawLoc;
+        const parsed = parseGoogleMapsInput(rawLoc);
+        state.storeInfo.googleMapsEmbed = parsed.embedUrl;
+        state.storeInfo.locationUrl = parsed.locationUrl;
+      }
+    }
 
     state.policies.about = document.getElementById('cms-ab').value.trim();
     state.policies.exchange = document.getElementById('cms-ex').value.trim();
@@ -4009,7 +4134,7 @@
 
     saveState('storeInfo');
     saveState('policies');
-    showToast('تم حفظ كافة إعدادات وسياسات المتجر بنجاح ✅');
+    showToast('تم حفظ كافة إعدادات المتجر وبيانات اللوكيشن والشريط الترويجي بنجاح ✅');
     renderCurrentPage();
   }
 
@@ -4420,10 +4545,6 @@
               دخول الحساب
             </button>
           </form>
-
-          <div class="mt-6 pt-4 border-t border-gray-100 text-center text-[11px] text-gray-400">
-            حساب المدير الافتراضي: الهاتف <strong>01105746118</strong> | كلمة المرور <strong>lotus2026</strong>
-          </div>
         </div>
       </div>
     `;
@@ -4514,28 +4635,39 @@
   }
 
   function renderContactPage(container) {
+    const mapUrl = state.storeInfo.locationUrl || state.storeInfo.googleMapsEmbed || 'https://www.google.com/maps';
     container.innerHTML = `
       <div class="max-w-5xl mx-auto px-4 py-12 text-xs sm:text-sm">
         <h1 class="text-3xl font-black text-rose-950 font-amiri mb-6">اتصل بنا وموقع المتجر</h1>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div class="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
-            <h3 class="text-lg font-bold text-gray-900">معلومات الاتصال المباشر</h3>
-            <p><strong>العنوان:</strong> ${state.storeInfo.address}</p>
-            <p><strong>الهاتف والواتساب:</strong> ${state.storeInfo.phone}</p>
-            <p><strong>محفظة فودافون كاش:</strong> ${state.storeInfo.vodafoneCash}</p>
-            <p><strong>مواعيد العمل:</strong> ${state.storeInfo.openingHours}</p>
+            <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <i data-lucide="map-pin" class="w-5 h-5 text-rose-800"></i>
+              <span>معلومات الاتصال ومقر المتجر</span>
+            </h3>
+            <p><strong>العنوان الفعلي:</strong> ${escapeHtml(state.storeInfo.address)}</p>
+            <p><strong>الهاتف والواتساب:</strong> ${escapeHtml(state.storeInfo.phone)}</p>
+            <p><strong>محفظة فودافون كاش:</strong> ${escapeHtml(state.storeInfo.vodafoneCash)}</p>
+            <p><strong>مواعيد العمل:</strong> ${escapeHtml(state.storeInfo.openingHours)}</p>
+
+            <div class="pt-2">
+              <a href="${mapUrl}" target="_blank" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-stone-950 font-bold text-center flex items-center justify-center gap-2 shadow transition">
+                <i data-lucide="navigation" class="w-4 h-4"></i>
+                <span>فتح اللوكيشن في تطبيق خرائط Google Maps 📍</span>
+              </a>
+            </div>
 
             <div class="grid grid-cols-3 gap-2 pt-2">
-              <a href="https://wa.me/${state.storeInfo.whatsapp}" target="_blank" class="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-center flex items-center justify-center gap-1.5 shadow transition" title="محادثة واتساب">
+              <a href="https://wa.me/${escapeHtml(state.storeInfo.whatsapp)}" target="_blank" class="py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-center flex items-center justify-center gap-1.5 shadow transition" title="محادثة واتساب">
                 <i data-lucide="message-circle" class="w-4 h-4"></i>
                 <span class="text-xs">واتساب</span>
               </a>
-              <a href="${state.storeInfo.instagramUrl}" target="_blank" class="py-2.5 rounded-xl social-badge-instagram text-white font-bold text-center flex items-center justify-center gap-1.5 shadow transition" title="حساب إنستغرام الرسمي: @lotus_flowers_eg">
+              <a href="${escapeHtml(state.storeInfo.instagramUrl)}" target="_blank" class="py-2.5 rounded-xl social-badge-instagram text-white font-bold text-center flex items-center justify-center gap-1.5 shadow transition" title="حساب إنستغرام الرسمي: @lotus_flowers_eg">
                 <svg class="w-4 h-4 fill-white" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
                 <span class="text-xs">إنستغرام</span>
               </a>
-              <a href="${state.storeInfo.facebookUrl}" target="_blank" class="py-2.5 rounded-xl social-badge-facebook text-white font-bold text-center flex items-center justify-center gap-1.5 shadow transition" title="صفحة فيسبوك الرسمية">
+              <a href="${escapeHtml(state.storeInfo.facebookUrl)}" target="_blank" class="py-2.5 rounded-xl social-badge-facebook text-white font-bold text-center flex items-center justify-center gap-1.5 shadow transition" title="صفحة فيسبوك الرسمية">
                 <svg class="w-4 h-4 fill-white" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
                 <span class="text-xs">فيسبوك</span>
               </a>
@@ -4543,8 +4675,8 @@
           </div>
 
           <!-- خريطة جوجل التفاعلية للمحل بالمنيل -->
-          <div class="rounded-3xl overflow-hidden border border-gray-200 shadow-sm h-80">
-            <iframe src="${state.storeInfo.googleMapsEmbed}" width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+          <div class="rounded-3xl overflow-hidden border border-gray-200 shadow-sm h-80 relative bg-stone-100">
+            <iframe id="contact-map-iframe" src="${state.storeInfo.googleMapsEmbed}" width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
           </div>
         </div>
       </div>
@@ -4602,6 +4734,12 @@
   function init() {
     window.addEventListener('hashchange', handleRoute);
     handleRoute();
+
+    // تحديث نص الشريط الترويجي العلوي ديناميكياً
+    const topBar = document.getElementById('top-bar-announcement');
+    if (topBar && state.storeInfo.announcementText) {
+      topBar.textContent = state.storeInfo.announcementText;
+    }
 
     const searchInput = document.getElementById('search-input');
     if (searchInput) {
