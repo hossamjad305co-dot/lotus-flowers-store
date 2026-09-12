@@ -58,6 +58,10 @@
     flowerTypesList: JSON.parse(localStorage.getItem(STORAGE_KEYS.FLOWER_TYPES_LIST)) || DEFAULT_FLOWER_TYPES,
     colorsList: JSON.parse(localStorage.getItem(STORAGE_KEYS.COLORS_LIST)) || DEFAULT_COLORS,
     uploadedHighlightImage: null,
+    uploadedEditHighlightImage: null,
+    editingMagazineSlideIndex: null,
+    selectedMagazineTheme: 'burgundy',
+    selectedMagazineLayout: 'left',
 
     // المسار الحالي والتنقل (Routing)
     currentRoute: {
@@ -344,6 +348,23 @@
     updateCartBadge();
   }
 
+  // دالة تحديد التدرج اللوني لخلفية المجلة بحسب السمة المختارة
+  function getSlideThemeBackground(themeKey) {
+    switch (themeKey) {
+      case 'navy':
+        return 'radial-gradient(circle at 80% 20%, #0f1e36 0%, #08101e 60%, #030712 100%)';
+      case 'emerald':
+        return 'radial-gradient(circle at 80% 20%, #064e3b 0%, #022c22 60%, #021a14 100%)';
+      case 'onyx':
+        return 'radial-gradient(circle at 80% 20%, #262626 0%, #171717 60%, #0a0a0a 100%)';
+      case 'plum':
+        return 'radial-gradient(circle at 80% 20%, #4c1d95 0%, #2e1065 60%, #120326 100%)';
+      case 'burgundy':
+      default:
+        return 'radial-gradient(circle at 80% 20%, #4a0e1c 0%, #29040e 60%, #170107 100%)';
+    }
+  }
+
   // ==================== محرك مجلة المتجر التفاعلية الفاخرة (Hero Magazine Engine) ====================
   function renderHeroMagazine() {
     const container = document.getElementById('hero-magazine-container');
@@ -362,8 +383,11 @@
       state.currentMagazineSlide = 0;
     }
 
+    const activeSlide = slides[state.currentMagazineSlide] || slides[0];
+    const currentThemeBg = getSlideThemeBackground(activeSlide ? (activeSlide.theme || 'burgundy') : 'burgundy');
+
     container.innerHTML = `
-      <div class="magazine-slider-wrap relative">
+      <div id="magazine-slider-root" class="magazine-slider-wrap relative transition-all duration-700" style="background: ${currentThemeBg};">
         <!-- نمط النقاط المائية الفاخرة بالخلفية -->
         <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1.2px,transparent_1.2px)] [background-size:20px_20px] pointer-events-none"></div>
 
@@ -381,12 +405,20 @@
         <div id="magazine-slides-track" class="relative z-10">
           ${slides.map((slide, idx) => {
             const isActive = idx === state.currentMagazineSlide;
+            const isImgRight = slide.imagePosition === 'right' || slide.layout === 'right';
+            const textColClass = isImgRight ? 'lg:col-span-7 lg:order-2 text-center lg:text-right space-y-4' : 'lg:col-span-7 lg:order-1 text-center lg:text-right space-y-4';
+            const imgColClass = isImgRight ? 'lg:col-span-5 lg:order-1 relative' : 'lg:col-span-5 lg:order-2 relative';
+            const btn1T = slide.primaryBtnText || slide.btn1Text;
+            const btn1L = slide.primaryBtnLink || slide.btn1Link;
+            const btn2T = slide.secondaryBtnText || slide.btn2Text;
+            const btn2L = slide.secondaryBtnLink || slide.btn2Link;
+
             return `
               <div class="magazine-slide ${isActive ? 'active' : ''} py-12 lg:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" data-slide-index="${idx}">
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
                   
                   <!-- تفاصيل الغلاف والمحتوى التحريري -->
-                  <div class="lg:col-span-7 text-center lg:text-right space-y-4">
+                  <div class="${textColClass}">
                     
                     <div class="flex flex-wrap items-center justify-center lg:justify-start gap-2.5">
                       <span class="magazine-issue-badge">${slide.issue || 'مجلة زهور اللوتس • ربيع 2026'}</span>
@@ -420,17 +452,17 @@
 
                     <!-- أزرار الإجراءات المخصصة بالكامل من المدير -->
                     <div class="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-3">
-                      ${slide.primaryBtnText ? `
-                        <a href="${slide.primaryBtnLink || '#shop'}" class="px-7 py-3.5 rounded-xl btn-gold text-white font-black text-xs sm:text-sm shadow-xl flex items-center gap-2 transition hover:scale-105">
+                      ${btn1T ? `
+                        <a href="${btn1L || '#shop'}" class="px-7 py-3.5 rounded-xl btn-gold text-white font-black text-xs sm:text-sm shadow-xl flex items-center gap-2 transition hover:scale-105">
                           <i data-lucide="shopping-bag" class="w-4 h-4"></i>
-                          <span>${slide.primaryBtnText}</span>
+                          <span>${btn1T}</span>
                         </a>
                       ` : ''}
 
-                      ${slide.secondaryBtnText ? `
-                        <a href="${slide.secondaryBtnLink || 'https://wa.me/201105746118'}" ${slide.secondaryBtnLink && slide.secondaryBtnLink.startsWith('http') ? 'target="_blank"' : ''} class="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm border border-white/20 transition flex items-center gap-2">
-                          <i data-lucide="${slide.secondaryBtnLink && slide.secondaryBtnLink.includes('wa.me') ? 'message-circle' : 'sparkles'}" class="w-4 h-4 text-amber-300"></i>
-                          <span>${slide.secondaryBtnText}</span>
+                      ${btn2T ? `
+                        <a href="${btn2L || 'https://wa.me/201105746118'}" ${btn2L && btn2L.startsWith('http') ? 'target="_blank"' : ''} class="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm border border-white/20 transition flex items-center gap-2">
+                          <i data-lucide="${btn2L && btn2L.includes('wa.me') ? 'message-circle' : 'sparkles'}" class="w-4 h-4 text-amber-300"></i>
+                          <span>${btn2T}</span>
                         </a>
                       ` : ''}
                     </div>
@@ -438,7 +470,7 @@
                   </div>
 
                   <!-- صورة الغلاف الاستعراضية الفاخرة -->
-                  <div class="lg:col-span-5 relative">
+                  <div class="${imgColClass}">
                     <div class="magazine-cover-frame max-w-sm mx-auto aspect-[4/5] bg-gray-900">
                       <img src="${slide.image}" alt="${slide.title}" class="w-full h-full object-cover">
                       <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6">
@@ -1973,6 +2005,24 @@
               </button>
             ` : ''}
 
+            ${canProducts ? `
+              <button onclick="window.lotusApp.switchAdminTab('location')" class="admin-tab py-3.5 px-4 text-xs font-bold border-b-2 whitespace-nowrap transition flex items-center gap-1.5 ${
+                state.admin.activeTab === 'location' ? 'border-rose-950 text-rose-950 bg-white' : 'border-transparent text-gray-500 hover:text-gray-900'
+              }">
+                <i data-lucide="map-pin" class="w-4 h-4 text-rose-700"></i>
+                <span>📍 مقر المتجر وخريطة Google Maps</span>
+              </button>
+            ` : ''}
+
+            ${canProducts ? `
+              <button onclick="window.lotusApp.switchAdminTab('faq')" class="admin-tab py-3.5 px-4 text-xs font-bold border-b-2 whitespace-nowrap transition flex items-center gap-1.5 ${
+                state.admin.activeTab === 'faq' ? 'border-rose-950 text-rose-950 bg-white' : 'border-transparent text-gray-500 hover:text-gray-900'
+              }">
+                <i data-lucide="help-circle" class="w-4 h-4 text-indigo-700"></i>
+                <span>❓ الأسئلة الشائعة (FAQ) (${(state.policies.faq || []).length})</span>
+              </button>
+            ` : ''}
+
             ${canUsers ? `
               <button onclick="window.lotusApp.switchAdminTab('users')" class="admin-tab py-3.5 px-4 text-xs font-bold border-b-2 whitespace-nowrap transition flex items-center gap-1.5 ${
                 state.admin.activeTab === 'users' ? 'border-rose-950 text-rose-950 bg-white' : 'border-transparent text-gray-500 hover:text-gray-900'
@@ -1999,6 +2049,8 @@
             ${state.admin.activeTab === 'magazine' && canProducts ? renderAdminMagazineSection() : ''}
             ${state.admin.activeTab === 'showcase' && canProducts ? renderAdminShowcaseSection() : ''}
             ${state.admin.activeTab === 'highlights' && canProducts ? renderAdminHighlightsSection() : ''}
+            ${state.admin.activeTab === 'location' && canProducts ? renderAdminLocationSection() : ''}
+            ${state.admin.activeTab === 'faq' && canProducts ? renderAdminFaqSection() : ''}
             ${state.admin.activeTab === 'cms' && canProducts ? renderAdminCmsSection() : ''}
             ${state.admin.activeTab === 'users' && canUsers ? renderAdminUsersSection() : ''}
             ${state.admin.activeTab === 'meta' && canMeta ? renderAdminMetaSection() : ''}
@@ -3198,9 +3250,185 @@
   }
 
   // ==================== إدارة مجلة المتجر وسلايدر الرئيسية ====================
+  function getThemeLabel(t) {
+    switch(t) {
+      case 'navy': return 'كحلي وذهبي';
+      case 'emerald': return 'زمردي ملكي';
+      case 'onyx': return 'أسود مخملي';
+      case 'plum': return 'بنفسجي رومانسي';
+      case 'burgundy':
+      default: return 'عنابي ووردي';
+    }
+  }
+
   function toggleNewMagazineForm() {
+    state.editingMagazineSlideIndex = null;
+    state.uploadedMagazineImage = null;
+    state.selectedMagazineTheme = 'burgundy';
+    state.selectedMagazineLayout = 'left';
     const box = document.getElementById('admin-new-magazine-box');
-    if (box) box.classList.toggle('hidden');
+    if (box) {
+      box.classList.toggle('hidden');
+      if (!box.classList.contains('hidden')) {
+        // تعيين قيم افتراضية نظيفة
+        const issueInput = document.getElementById('nms-issue');
+        const badgeInput = document.getElementById('nms-badge');
+        const tagInput = document.getElementById('nms-tag');
+        const titleInput = document.getElementById('nms-title');
+        const subtitleInput = document.getElementById('nms-subtitle');
+        const btn1T = document.getElementById('nms-btn1-text');
+        const btn1L = document.getElementById('nms-btn1-link');
+        const btn2T = document.getElementById('nms-btn2-text');
+        const btn2L = document.getElementById('nms-btn2-link');
+        const imgUrl = document.getElementById('nms-image-url');
+
+        if (issueInput) issueInput.value = 'العدد الملكي • ربيع 2026';
+        if (badgeInput) badgeInput.value = 'تنسيق حصري لزهور اللوتس';
+        if (tagInput) tagInput.value = 'زهور اللوتس • المنيل';
+        if (titleInput) titleInput.value = 'صواني قراية الفاتحة والخطوبة الفاخرة';
+        if (subtitleInput) subtitleInput.value = 'تنسيقات ملكية منتقاة بأجود زهور الجوري والبيبي روز مع أماكن مخصصة للشبكة والمصحف والشوكولاتة.';
+        if (btn1T) btn1T.value = 'تصفح صواني الفاتحة';
+        if (btn1L) btn1L.value = '#shop';
+        if (btn2T) btn2T.value = 'طلب مخصوص عبر واتساب';
+        if (btn2L) btn2L.value = 'https://wa.me/201105746118';
+        if (imgUrl) imgUrl.value = 'assets/products/p01.jpg';
+
+        const formTitle = document.getElementById('admin-magazine-form-title');
+        if (formTitle) formTitle.textContent = 'إضافة صفحة / غلاف جديد للمجلة:';
+        updateMagazineLivePreview();
+        box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }
+
+  function openEditMagazineSlide(idx) {
+    const slide = state.magazineSlides[idx];
+    if (!slide) return;
+
+    state.editingMagazineSlideIndex = idx;
+    state.uploadedMagazineImage = null;
+    state.selectedMagazineTheme = slide.theme || 'burgundy';
+    state.selectedMagazineLayout = slide.imagePosition || slide.layout || 'left';
+
+    const box = document.getElementById('admin-new-magazine-box');
+    if (box) {
+      box.classList.remove('hidden');
+
+      const issueInput = document.getElementById('nms-issue');
+      const badgeInput = document.getElementById('nms-badge');
+      const tagInput = document.getElementById('nms-tag');
+      const titleInput = document.getElementById('nms-title');
+      const subtitleInput = document.getElementById('nms-subtitle');
+      const btn1T = document.getElementById('nms-btn1-text');
+      const btn1L = document.getElementById('nms-btn1-link');
+      const btn2T = document.getElementById('nms-btn2-text');
+      const btn2L = document.getElementById('nms-btn2-link');
+      const imgUrl = document.getElementById('nms-image-url');
+
+      if (issueInput) issueInput.value = slide.issue || '';
+      if (badgeInput) badgeInput.value = slide.badge || '';
+      if (tagInput) tagInput.value = slide.tag || '';
+      if (titleInput) titleInput.value = slide.title || '';
+      if (subtitleInput) subtitleInput.value = slide.subtitle || '';
+      if (btn1T) btn1T.value = slide.primaryBtnText || slide.btn1Text || 'تسوق الآن';
+      if (btn1L) btn1L.value = slide.primaryBtnLink || slide.btn1Link || '#shop';
+      if (btn2T) btn2T.value = slide.secondaryBtnText || slide.btn2Text || '';
+      if (btn2L) btn2L.value = slide.secondaryBtnLink || slide.btn2Link || '';
+      if (imgUrl) imgUrl.value = slide.image || 'assets/products/p01.jpg';
+
+      const formTitle = document.getElementById('admin-magazine-form-title');
+      if (formTitle) formTitle.textContent = `تعديل الغلاف #${idx + 1} (${slide.title}):`;
+
+      updateThemeButtonsVisual();
+      updateLayoutButtonsVisual();
+      updateMagazineLivePreview();
+      box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function closeEditMagazineSlide() {
+    state.editingMagazineSlideIndex = null;
+    const box = document.getElementById('admin-new-magazine-box');
+    if (box) box.classList.add('hidden');
+  }
+
+  function applyMagazinePresetButton(text, link) {
+    const btnText = document.getElementById('nms-btn1-text');
+    const btnLink = document.getElementById('nms-btn1-link');
+    if (btnText) btnText.value = text;
+    if (btnLink) btnLink.value = link;
+    updateMagazineLivePreview();
+  }
+
+  function applyMagazinePresetSecondary(text, link) {
+    const btnText = document.getElementById('nms-btn2-text');
+    const btnLink = document.getElementById('nms-btn2-link');
+    if (btnText) btnText.value = text;
+    if (btnLink) btnLink.value = link;
+    updateMagazineLivePreview();
+  }
+
+  function applyMagazinePresetBadge(text) {
+    const badgeInput = document.getElementById('nms-badge');
+    if (badgeInput) badgeInput.value = text;
+    updateMagazineLivePreview();
+  }
+
+  function applyMagazinePresetIssue(text) {
+    const issueInput = document.getElementById('nms-issue');
+    if (issueInput) issueInput.value = text;
+    updateMagazineLivePreview();
+  }
+
+  function setMagazineTheme(theme) {
+    state.selectedMagazineTheme = theme;
+    updateThemeButtonsVisual();
+    updateMagazineLivePreview();
+  }
+
+  function updateThemeButtonsVisual() {
+    const btns = document.querySelectorAll('.mag-theme-btn');
+    btns.forEach(btn => {
+      const t = btn.getAttribute('data-theme');
+      if (t === state.selectedMagazineTheme) {
+        btn.classList.add('ring-2', 'ring-amber-400', 'scale-105', 'font-black');
+      } else {
+        btn.classList.remove('ring-2', 'ring-amber-400', 'scale-105', 'font-black');
+      }
+    });
+  }
+
+  function setMagazineImagePosition(pos) {
+    state.selectedMagazineLayout = pos;
+    updateLayoutButtonsVisual();
+    updateMagazineLivePreview();
+  }
+
+  function updateLayoutButtonsVisual() {
+    const btns = document.querySelectorAll('.mag-layout-btn');
+    btns.forEach(btn => {
+      const l = btn.getAttribute('data-layout');
+      if (l === state.selectedMagazineLayout) {
+        btn.classList.add('bg-rose-950', 'text-white', 'font-bold');
+        btn.classList.remove('bg-gray-100', 'text-gray-700');
+      } else {
+        btn.classList.remove('bg-rose-950', 'text-white', 'font-bold');
+        btn.classList.add('bg-gray-100', 'text-gray-700');
+      }
+    });
+  }
+
+  function selectMagazineQuickImage(imgPath) {
+    state.uploadedMagazineImage = null;
+    const urlInput = document.getElementById('nms-image-url');
+    if (urlInput) urlInput.value = imgPath;
+    const previewBox = document.getElementById('nms-preview-box');
+    const previewImg = document.getElementById('nms-preview-img');
+    if (previewBox && previewImg) {
+      previewImg.src = imgPath;
+      previewBox.classList.remove('hidden');
+    }
+    updateMagazineLivePreview();
   }
 
   function handleMagazineImageUpload(e) {
@@ -3217,48 +3445,172 @@
         previewBox.classList.remove('hidden');
       }
       if (urlInput) urlInput.value = `assets/magazine/slide-${Date.now()}.jpg`;
+      updateMagazineLivePreview();
     };
     reader.readAsDataURL(file);
   }
 
+  function updateMagazineLivePreview() {
+    const previewContainer = document.getElementById('magazine-live-preview-box');
+    if (!previewContainer) return;
+
+    const issue = document.getElementById('nms-issue')?.value.trim() || 'العدد الملكي • ربيع 2026';
+    const badge = document.getElementById('nms-badge')?.value.trim();
+    const title = document.getElementById('nms-title')?.value.trim() || 'عنوان الغلاف الفاخر يظهر هنا';
+    const subtitle = document.getElementById('nms-subtitle')?.value.trim() || 'وصف تحريري رائع يبرز فخامة وتفاصيل التشكيلة المختارة...';
+    const btn1Text = document.getElementById('nms-btn1-text')?.value.trim() || 'تسوق المجموعة';
+    const btn2Text = document.getElementById('nms-btn2-text')?.value.trim();
+    const image = state.uploadedMagazineImage || document.getElementById('nms-image-url')?.value.trim() || 'assets/products/p01.jpg';
+    const theme = state.selectedMagazineTheme || 'burgundy';
+    const layout = state.selectedMagazineLayout || 'left';
+
+    const bgGradient = getSlideThemeBackground(theme);
+    const isImgRight = layout === 'right';
+
+    previewContainer.innerHTML = `
+      <div class="relative overflow-hidden p-6 rounded-2xl text-white select-none transition-all duration-500" style="background: ${bgGradient}; min-height: 380px;">
+        <!-- نمط النقاط المائية -->
+        <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1.2px,transparent_1.2px)] [background-size:16px_16px] pointer-events-none"></div>
+
+        <div class="relative z-10 flex flex-col ${isImgRight ? 'md:flex-row-reverse' : 'md:flex-row'} items-center gap-5">
+          <!-- تفاصيل النصوص -->
+          <div class="flex-1 space-y-2.5 text-center ${isImgRight ? 'md:text-left' : 'md:text-right'}">
+            <div class="flex flex-wrap items-center justify-center ${isImgRight ? 'md:justify-start' : 'md:justify-start'} gap-1.5">
+              <span class="magazine-issue-badge text-[10px] py-0.5 px-2.5">${escapeHtml(issue)}</span>
+              ${badge ? `
+                <span class="bg-amber-400 text-rose-950 text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-sm">
+                  ${escapeHtml(badge)}
+                </span>
+              ` : ''}
+            </div>
+
+            <h3 class="text-xl sm:text-2xl font-black font-amiri text-white leading-tight">
+              ${escapeHtml(title)}
+            </h3>
+
+            <p class="text-[11px] text-rose-100/90 leading-relaxed max-w-sm">
+              ${escapeHtml(subtitle)}
+            </p>
+
+            <div class="flex flex-wrap items-center justify-center ${isImgRight ? 'md:justify-start' : 'md:justify-start'} gap-2 pt-1">
+              ${btn1Text ? `
+                <div class="px-4 py-2 rounded-xl btn-gold text-white font-black text-xs shadow flex items-center gap-1.5">
+                  <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i>
+                  <span>${escapeHtml(btn1Text)}</span>
+                </div>
+              ` : ''}
+              ${btn2Text ? `
+                <div class="px-3.5 py-2 rounded-xl bg-white/10 text-white font-bold text-xs border border-white/20 flex items-center gap-1.5">
+                  <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-300"></i>
+                  <span>${escapeHtml(btn2Text)}</span>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- صورة الغلاف -->
+          <div class="w-40 sm:w-48 shrink-0">
+            <div class="relative rounded-2xl overflow-hidden shadow-2xl aspect-[4/5] bg-gray-900 border-2 border-white/20">
+              <img src="${image}" alt="معاينة الغلاف" class="w-full h-full object-cover">
+              <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-3">
+                <span class="text-amber-300 text-[9px] font-bold block mb-0.5">زهور اللوتس • Lotus Flowers</span>
+                <span class="text-xs font-bold text-white font-amiri truncate block">${escapeHtml(title)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="absolute bottom-2 left-3 text-[9px] text-white/50 font-mono">
+          معاينة حية (${getThemeLabel(theme)} • ${isImgRight ? 'صورة يمين' : 'صورة يسار'})
+        </div>
+      </div>
+    `;
+    lucide.createIcons();
+  }
+
   function handleSaveMagazineSlide(e) {
     e.preventDefault();
-    const issue = document.getElementById('nms-issue').value.trim();
+    const issue = document.getElementById('nms-issue').value.trim() || 'إصدار جديد';
     const badge = document.getElementById('nms-badge').value.trim();
-    const tag = document.getElementById('nms-tag').value.trim();
+    const tag = document.getElementById('nms-tag').value.trim() || 'زهور اللوتس';
     const title = document.getElementById('nms-title').value.trim();
     const subtitle = document.getElementById('nms-subtitle').value.trim();
-    const btn1Text = document.getElementById('nms-btn1-text').value.trim();
-    const btn1Link = document.getElementById('nms-btn1-link').value.trim();
+    const btn1Text = document.getElementById('nms-btn1-text').value.trim() || 'تسوق الآن';
+    const btn1Link = document.getElementById('nms-btn1-link').value.trim() || '#shop';
     const btn2Text = document.getElementById('nms-btn2-text').value.trim();
     const btn2Link = document.getElementById('nms-btn2-link').value.trim();
     const image = state.uploadedMagazineImage || document.getElementById('nms-image-url').value.trim() || 'assets/products/p01.jpg';
+    const theme = state.selectedMagazineTheme || 'burgundy';
+    const layout = state.selectedMagazineLayout || 'left';
 
-    const newSlide = {
-      id: `slide-${Date.now()}`,
-      issue: issue || 'إصدار جديد',
-      badge: badge || 'غلاف المجلة',
-      tag: tag || 'زهور اللوتس',
-      title: title,
-      subtitle: subtitle,
-      btn1Text: btn1Text || 'تسوق الآن',
-      btn1Link: btn1Link || '#shop',
-      btn2Text: btn2Text || 'واتساب',
-      btn2Link: btn2Link || 'https://wa.me/201105746118',
-      image: image,
-      active: true
-    };
+    if (!title) {
+      showToast('يرجى إدخال عنوان الغلاف', 'error');
+      return;
+    }
 
     if (!state.magazineSlides) state.magazineSlides = [];
-    state.magazineSlides.push(newSlide);
+
+    if (state.editingMagazineSlideIndex !== null && state.magazineSlides[state.editingMagazineSlideIndex]) {
+      // تحديث شريحة موجودة
+      const existing = state.magazineSlides[state.editingMagazineSlideIndex];
+      state.magazineSlides[state.editingMagazineSlideIndex] = {
+        ...existing,
+        issue,
+        badge,
+        tag,
+        title,
+        subtitle,
+        btn1Text,
+        btn1Link,
+        primaryBtnText: btn1Text,
+        primaryBtnLink: btn1Link,
+        btn2Text,
+        btn2Link,
+        secondaryBtnText: btn2Text,
+        secondaryBtnLink: btn2Link,
+        image,
+        theme,
+        imagePosition: layout,
+        layout
+      };
+      state.editingMagazineSlideIndex = null;
+      showToast(`تم حفظ وتحديث غلاف المجلة "${title}" بنجاح! ✨`);
+    } else {
+      // إضافة شريحة جديدة
+      const newSlide = {
+        id: `slide-${Date.now()}`,
+        issue,
+        badge,
+        tag,
+        title,
+        subtitle,
+        btn1Text,
+        btn1Link,
+        primaryBtnText: btn1Text,
+        primaryBtnLink: btn1Link,
+        btn2Text,
+        btn2Link,
+        secondaryBtnText: btn2Text,
+        secondaryBtnLink: btn2Link,
+        image,
+        theme,
+        imagePosition: layout,
+        layout,
+        active: true
+      };
+      state.magazineSlides.push(newSlide);
+      showToast(`تمت إضافة ونشر غلاف المجلة الجديد "${title}" بنجاح! ✨`);
+    }
+
     saveState('magazineSlides');
     state.uploadedMagazineImage = null;
-    showToast('تمت إضافة ونشر غلاف المجلة بنجاح!');
     renderCurrentPage();
   }
 
   function handleDeleteMagazineSlide(index) {
-    if (!confirm('هل أنت متأكد من حذف هذا الغلاف من المجلة؟')) return;
+    const slide = state.magazineSlides[index];
+    const name = slide ? slide.title : 'هذا الغلاف';
+    if (!confirm(`هل أنت متأكد من حذف غلاف "${name}" من المجلة؟`)) return;
     state.magazineSlides.splice(index, 1);
     saveState('magazineSlides');
     showToast('تم حذف الغلاف من المجلة');
@@ -3278,124 +3630,296 @@
     const slides = state.magazineSlides || [];
     return `
       <div class="space-y-6 text-xs">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h4 class="font-bold text-gray-900 text-sm">إدارة مجلة وسلايدر الرئيسية التفاعلية</h4>
-            <p class="text-gray-500 text-[11px] mt-0.5">تحكم في أغلفة المجلة، النصوص، الأزرار، والروابط المعروضة في واجهة المتجر الرئيسية</p>
+            <h4 class="font-bold text-gray-900 text-sm">إدارة مجلة وسلايدر الرئيسية التفاعلية (${slides.length} أغلفة)</h4>
+            <p class="text-gray-500 text-[11px] mt-0.5">صمم ونظم أغلفة المجلة مع معاينة حية فورية على الجنب وخيارات جاهزة دون الحاجة لكتابة أي كود</p>
           </div>
-          <button onclick="window.lotusApp.toggleNewMagazineForm()" class="px-4 py-2 rounded-xl btn-primary font-bold flex items-center gap-1 shadow">
+          <button onclick="window.lotusApp.toggleNewMagazineForm()" class="px-4 py-2.5 rounded-xl btn-primary font-bold flex items-center gap-1.5 shadow">
             <i data-lucide="plus" class="w-4 h-4"></i>
-            إضافة صفحة / غلاف جديد للمجلة
+            <span>إضافة غلاف جديد للمجلة</span>
           </button>
         </div>
 
-        <!-- نموذج إضافة غلاف / شريحة جديدة للمجلة -->
-        <div id="admin-new-magazine-box" class="hidden p-5 bg-white rounded-2xl border border-rose-200 shadow-sm space-y-4">
-          <h5 class="font-bold text-sm text-rose-950">إضافة غلاف / قصة مجلة جديدة:</h5>
-          <form onsubmit="window.lotusApp.handleSaveMagazineSlide(event)" class="space-y-4">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label class="block font-bold mb-1">رقم/تاريخ الإصدار (Issue):</label>
-                <input type="text" id="nms-issue" required placeholder="مثال: الإصدار 05 • خريف 2026" class="w-full p-2.5 rounded-xl border border-gray-300">
-              </div>
-              <div>
-                <label class="block font-bold mb-1">شارة الغلاف (Badge):</label>
-                <input type="text" id="nms-badge" placeholder="مثال: غلاف المجلة / تشكيلة حصرية" class="w-full p-2.5 rounded-xl border border-gray-300">
-              </div>
-              <div>
-                <label class="block font-bold mb-1">وسم المجموعة (Tag):</label>
-                <input type="text" id="nms-tag" placeholder="مثال: زهور اللوتس • القاهرة" class="w-full p-2.5 rounded-xl border border-gray-300">
-              </div>
-            </div>
+        <!-- محرر الأغلفة الذكي المطور (جنباً إلى جنب مع المعاينة الحية) -->
+        <div id="admin-new-magazine-box" class="hidden p-6 bg-white rounded-3xl border border-rose-200 shadow-lg space-y-4">
+          <div class="flex items-center justify-between border-b border-gray-100 pb-3">
+            <h5 id="admin-magazine-form-title" class="font-bold text-sm text-rose-950 flex items-center gap-2">
+              <i data-lucide="sparkles" class="w-4 h-4 text-amber-500"></i>
+              <span>محرر وتنسيق غلاف المجلة:</span>
+            </h5>
+            <button onclick="window.lotusApp.closeEditMagazineSlide()" class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label class="block font-bold mb-1">عنوان الغلاف الرئيسي *</label>
-                <input type="text" id="nms-title" required placeholder="مثال: باقات الخريف الملكية الساحرة" class="w-full p-2.5 rounded-xl border border-gray-300 font-bold">
-              </div>
-              <div>
-                <label class="block font-bold mb-1">الوصف التحريري (العنوان الفرعي) *</label>
-                <input type="text" id="nms-subtitle" required placeholder="مثال: تشكيلة فاخرة منتقاة بعناية لتعبر عن أسمى معاني الفخامة..." class="w-full p-2.5 rounded-xl border border-gray-300">
-              </div>
-            </div>
-
-            <!-- الأزرار التفاعلية المخصصة -->
-            <div class="p-3 bg-gray-50 rounded-xl border border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <h6 class="font-bold text-gray-900 mb-2">الزر التفاعلي الرئيسي:</h6>
-                <div class="space-y-2">
-                  <input type="text" id="nms-btn1-text" placeholder="نص الزر (مثال: تسوق المجموعة الآن)" value="تسوق المجموعة الآن" class="w-full p-2 rounded-lg border border-gray-300">
-                  <input type="text" id="nms-btn1-link" placeholder="رابط الزر (مثال: #shop)" value="#shop" class="w-full p-2 rounded-lg border border-gray-300 font-mono text-[11px]">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <!-- الطرف الأيمن: الخيارات السهلة الذكية بدون أي كود -->
+            <form onsubmit="window.lotusApp.handleSaveMagazineSlide(event)" class="lg:col-span-7 space-y-4">
+              
+              <!-- رقم وتاريخ الإصدار مع الخيارات الجاهزة -->
+              <div class="space-y-1.5">
+                <label class="block font-bold">1. رقم وتاريخ الإصدار (Issue):</label>
+                <input type="text" id="nms-issue" required oninput="window.lotusApp.updateMagazineLivePreview()" placeholder="مثال: العدد الملكي • ربيع 2026" class="w-full p-2.5 rounded-xl border border-gray-300 font-bold focus:border-rose-900 focus:outline-none">
+                <div class="flex flex-wrap gap-1.5 pt-1">
+                  <span class="text-[10px] text-gray-500 self-center">خيارات جاهزة:</span>
+                  <button type="button" onclick="window.lotusApp.applyMagazinePresetIssue('العدد الملكي • ربيع 2026')" class="px-2 py-0.5 rounded-md bg-rose-50 text-rose-900 border border-rose-200 hover:bg-rose-100 text-[10px] font-bold">العدد الملكي • ربيع 2026</button>
+                  <button type="button" onclick="window.lotusApp.applyMagazinePresetIssue('إصدار المناسبات الخاصة 2026')" class="px-2 py-0.5 rounded-md bg-rose-50 text-rose-900 border border-rose-200 hover:bg-rose-100 text-[10px] font-bold">إصدار المناسبات الخاصة 2026</button>
+                  <button type="button" onclick="window.lotusApp.applyMagazinePresetIssue('تشكيلة العرائس وقراية الفاتحة 💍')" class="px-2 py-0.5 rounded-md bg-rose-50 text-rose-900 border border-rose-200 hover:bg-rose-100 text-[10px] font-bold">تشكيلة العرائس 💍</button>
                 </div>
               </div>
-              <div>
-                <h6 class="font-bold text-gray-900 mb-2">الزر التفاعلي الثانوي:</h6>
-                <div class="space-y-2">
-                  <input type="text" id="nms-btn2-text" placeholder="نص الزر (مثال: اطلب عبر واتساب)" value="اطلب عبر واتساب" class="w-full p-2 rounded-lg border border-gray-300">
-                  <input type="text" id="nms-btn2-link" placeholder="رابط الزر (مثال: https://wa.me/201105746118)" value="https://wa.me/201105746118" class="w-full p-2 rounded-lg border border-gray-300 font-mono text-[11px]">
+
+              <!-- شارة الغلاف والوسم مع خيارات جاهزة -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <label class="block font-bold">2. شارة الغلاف المميزة (Badge):</label>
+                  <input type="text" id="nms-badge" oninput="window.lotusApp.updateMagazineLivePreview()" placeholder="مثال: التشكيلة الأكثر طلباً" class="w-full p-2.5 rounded-xl border border-gray-300 focus:border-rose-900 focus:outline-none">
+                  <div class="flex flex-wrap gap-1 pt-1">
+                    <button type="button" onclick="window.lotusApp.applyMagazinePresetBadge('✨ الأكثر طلباً ورواجاً')" class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 text-[10px] font-bold">✨ الأكثر طلباً</button>
+                    <button type="button" onclick="window.lotusApp.applyMagazinePresetBadge('👑 تشكيلة ملكية حصرية')" class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 text-[10px] font-bold">👑 ملكية حصرية</button>
+                    <button type="button" onclick="window.lotusApp.applyMagazinePresetBadge('💍 صواني شبكة وفاتحة')" class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 text-[10px] font-bold">💍 صواني شبكة</button>
+                    <button type="button" onclick="window.lotusApp.applyMagazinePresetBadge('')" class="px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-[10px] font-bold">إخفاء</button>
+                  </div>
+                </div>
+
+                <div class="space-y-1.5">
+                  <label class="block font-bold">وسم المتجر الصغير (Tag):</label>
+                  <input type="text" id="nms-tag" oninput="window.lotusApp.updateMagazineLivePreview()" value="زهور اللوتس • القاهرة" placeholder="مثال: زهور اللوتس • القاهرة" class="w-full p-2.5 rounded-xl border border-gray-300 focus:border-rose-900 focus:outline-none">
                 </div>
               </div>
-            </div>
 
-            <!-- صورة الغلاف -->
-            <div>
-              <label class="block font-bold mb-1">صورة غلاف المجلة (رفع من الجهاز أو رابط) *</label>
-              <div class="flex items-center gap-3">
-                <label class="flex-1 cursor-pointer py-2.5 px-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 flex items-center justify-center gap-2">
-                  <i data-lucide="upload" class="w-4 h-4 text-rose-800"></i>
-                  <span id="nms-img-label">اختر صورة من جهازك</span>
-                  <input type="file" accept="image/*" onchange="window.lotusApp.handleMagazineImageUpload(event)" class="hidden">
-                </label>
-                <input type="text" id="nms-image-url" placeholder="أو رابط الصورة (assets/...)" class="flex-1 p-2.5 rounded-xl border border-gray-300">
+              <!-- العنوان الرئيسي والوصف التحريري -->
+              <div class="space-y-1.5">
+                <label class="block font-bold">3. عنوان الغلاف الرئيسي *</label>
+                <input type="text" id="nms-title" required oninput="window.lotusApp.updateMagazineLivePreview()" placeholder="مثال: صواني قراية الفاتحة والخطوبة الفاخرة" class="w-full p-2.5 rounded-xl border border-gray-300 font-bold focus:border-rose-900 focus:outline-none">
               </div>
-              <div id="nms-preview-box" class="hidden mt-2 flex items-center gap-3">
-                <img id="nms-preview-img" src="" alt="معاينة" class="w-20 h-14 rounded-xl object-cover border border-gray-200">
-                <span class="text-emerald-700 font-bold">تم اختيار ومعاينة صورة الغلاف!</span>
-              </div>
-            </div>
 
-            <div class="flex justify-end gap-2 pt-2">
-              <button type="button" onclick="window.lotusApp.toggleNewMagazineForm()" class="px-4 py-2 rounded-xl text-gray-600 hover:bg-gray-100 font-bold">إلغاء</button>
-              <button type="submit" class="px-6 py-2 rounded-xl btn-primary font-bold">حفظ الغلاف ونشره في السلايدر</button>
+              <div class="space-y-1.5">
+                <label class="block font-bold">4. الوصف التحريري (العنوان الفرعي) *</label>
+                <textarea id="nms-subtitle" required rows="2" oninput="window.lotusApp.updateMagazineLivePreview()" placeholder="مثال: تشكيلة فاخرة منتقاة بعناية لتعبر عن أسمى معاني الفخامة..." class="w-full p-2.5 rounded-xl border border-gray-300 focus:border-rose-900 focus:outline-none"></textarea>
+              </div>
+
+              <!-- اختيار خلفية وسِمة الغلاف (Theme Palette) -->
+              <div class="p-3.5 bg-gray-50 rounded-2xl border border-gray-200 space-y-2">
+                <label class="block font-bold text-gray-900">5. سمة ولون خلفية الغلاف (Theme):</label>
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  <button type="button" onclick="window.lotusApp.setMagazineTheme('burgundy')" data-theme="burgundy" class="mag-theme-btn p-2 rounded-xl text-center border border-gray-300 transition flex flex-col items-center gap-1 ${state.selectedMagazineTheme === 'burgundy' ? 'ring-2 ring-amber-400 scale-105 font-black' : ''}">
+                    <span class="w-5 h-5 rounded-full bg-[#4a0e1c] shadow"></span>
+                    <span class="text-[10px]">عنابي ملكي</span>
+                  </button>
+                  <button type="button" onclick="window.lotusApp.setMagazineTheme('navy')" data-theme="navy" class="mag-theme-btn p-2 rounded-xl text-center border border-gray-300 transition flex flex-col items-center gap-1 ${state.selectedMagazineTheme === 'navy' ? 'ring-2 ring-amber-400 scale-105 font-black' : ''}">
+                    <span class="w-5 h-5 rounded-full bg-[#0f1e36] shadow"></span>
+                    <span class="text-[10px]">كحلي وذهبي</span>
+                  </button>
+                  <button type="button" onclick="window.lotusApp.setMagazineTheme('emerald')" data-theme="emerald" class="mag-theme-btn p-2 rounded-xl text-center border border-gray-300 transition flex flex-col items-center gap-1 ${state.selectedMagazineTheme === 'emerald' ? 'ring-2 ring-amber-400 scale-105 font-black' : ''}">
+                    <span class="w-5 h-5 rounded-full bg-[#064e3b] shadow"></span>
+                    <span class="text-[10px]">زمردي ملكي</span>
+                  </button>
+                  <button type="button" onclick="window.lotusApp.setMagazineTheme('onyx')" data-theme="onyx" class="mag-theme-btn p-2 rounded-xl text-center border border-gray-300 transition flex flex-col items-center gap-1 ${state.selectedMagazineTheme === 'onyx' ? 'ring-2 ring-amber-400 scale-105 font-black' : ''}">
+                    <span class="w-5 h-5 rounded-full bg-[#171717] shadow"></span>
+                    <span class="text-[10px]">أسود مخملي</span>
+                  </button>
+                  <button type="button" onclick="window.lotusApp.setMagazineTheme('plum')" data-theme="plum" class="mag-theme-btn p-2 rounded-xl text-center border border-gray-300 transition flex flex-col items-center gap-1 ${state.selectedMagazineTheme === 'plum' ? 'ring-2 ring-amber-400 scale-105 font-black' : ''}">
+                    <span class="w-5 h-5 rounded-full bg-[#4c1d95] shadow"></span>
+                    <span class="text-[10px]">بنفسجي فاخر</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- اختيار مكان وترتيب الصورة والنصوص -->
+              <div class="p-3 bg-gray-50 rounded-2xl border border-gray-200 flex flex-wrap items-center justify-between gap-2">
+                <span class="font-bold text-gray-900">6. مكان صورة الغلاف بالنسبة للنص:</span>
+                <div class="flex items-center gap-1">
+                  <button type="button" onclick="window.lotusApp.setMagazineImagePosition('left')" data-layout="left" class="mag-layout-btn px-3 py-1.5 rounded-xl border text-[11px] transition ${state.selectedMagazineLayout !== 'right' ? 'bg-rose-950 text-white font-bold' : 'bg-gray-100 text-gray-700'}">
+                    الصورة يسار والنص يمين (الافتراضي)
+                  </button>
+                  <button type="button" onclick="window.lotusApp.setMagazineImagePosition('right')" data-layout="right" class="mag-layout-btn px-3 py-1.5 rounded-xl border text-[11px] transition ${state.selectedMagazineLayout === 'right' ? 'bg-rose-950 text-white font-bold' : 'bg-gray-100 text-gray-700'}">
+                    الصورة يمين والنص يسار
+                  </button>
+                </div>
+              </div>
+
+              <!-- الزر التفاعلي الرئيسي مع خيارات جاهزة بدون كود -->
+              <div class="p-3.5 bg-amber-50/60 rounded-2xl border border-amber-200 space-y-2">
+                <div class="flex items-center justify-between">
+                  <h6 class="font-bold text-rose-950">7. الزر التفاعلي الرئيسي (Primary Button):</h6>
+                  <span class="text-[10px] text-amber-800 font-bold">كبسة زر واحدة تحدد الزر ورابطه تلقائياً</span>
+                </div>
+                
+                <div class="flex flex-wrap gap-1.5 pb-1">
+                  <button type="button" onclick="window.lotusApp.applyMagazinePresetButton('تصفح صواني قراية الفاتحة 💍', '#shop')" class="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-100 border border-amber-300 text-amber-950 text-[10px] font-bold shadow-sm">
+                    💍 صواني قراية الفاتحة
+                  </button>
+                  <button type="button" onclick="window.lotusApp.applyMagazinePresetButton('تصفح باقات الحب والرومانسية ❤️', '#shop')" class="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-100 border border-amber-300 text-amber-950 text-[10px] font-bold shadow-sm">
+                    ❤️ باقات الحب والرومانسية
+                  </button>
+                  <button type="button" onclick="window.lotusApp.applyMagazinePresetButton('تصفح باقات التخرج والنجاح 🎓', '#shop')" class="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-100 border border-amber-300 text-amber-950 text-[10px] font-bold shadow-sm">
+                    🎓 باقات التخرج والنجاح
+                  </button>
+                  <button type="button" onclick="window.lotusApp.applyMagazinePresetButton('تصفح كامل كتالوج الباقات 💐', '#shop')" class="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-100 border border-amber-300 text-amber-950 text-[10px] font-bold shadow-sm">
+                    💐 كامل كتالوج الباقات
+                  </button>
+                  <button type="button" onclick="window.lotusApp.applyMagazinePresetButton('تنسيق باقة عبر واتساب 💬', 'https://wa.me/201105746118')" class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-900 text-[10px] font-bold shadow-sm">
+                    💬 طلب عبر واتساب
+                  </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <label class="block text-[10px] font-bold text-gray-600 mb-0.5">نص الزر الظاهر:</label>
+                    <input type="text" id="nms-btn1-text" oninput="window.lotusApp.updateMagazineLivePreview()" value="تسوق المجموعة الآن" class="w-full p-2 bg-white rounded-lg border border-gray-300 font-bold">
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-bold text-gray-600 mb-0.5">رابط توجيه الزر:</label>
+                    <input type="text" id="nms-btn1-link" oninput="window.lotusApp.updateMagazineLivePreview()" value="#shop" class="w-full p-2 bg-white rounded-lg border border-gray-300 font-mono text-[11px] text-left">
+                  </div>
+                </div>
+              </div>
+
+              <!-- الزر التفاعلي الثانوي مع خيارات جاهزة -->
+              <div class="p-3 bg-gray-50 rounded-2xl border border-gray-200 space-y-2">
+                <div class="flex items-center justify-between">
+                  <h6 class="font-bold text-gray-900">8. الزر التفاعلي الثانوي (Secondary Button):</h6>
+                  <span class="text-[10px] text-gray-500">اختياري</span>
+                </div>
+
+                <div class="flex flex-wrap gap-1.5 pb-1">
+                  <button type="button" onclick="window.lotusApp.applyMagazinePresetSecondary('اطلب عبر واتساب 💬', 'https://wa.me/201105746118')" class="px-2 py-0.5 rounded bg-white hover:bg-gray-100 border border-gray-300 text-[10px] font-bold">
+                    💬 واتساب المتجر
+                  </button>
+                  <button type="button" onclick="window.lotusApp.applyMagazinePresetSecondary('عروض وتخفيضات خاصة 🏷️', '#shop')" class="px-2 py-0.5 rounded bg-white hover:bg-gray-100 border border-gray-300 text-[10px] font-bold">
+                    🏷️ عروض وتخفيضات
+                  </button>
+                  <button type="button" onclick="window.lotusApp.applyMagazinePresetSecondary('اتصل بنا الآن 📞', 'tel:01105746118')" class="px-2 py-0.5 rounded bg-white hover:bg-gray-100 border border-gray-300 text-[10px] font-bold">
+                    📞 اتصل بنا
+                  </button>
+                  <button type="button" onclick="window.lotusApp.applyMagazinePresetSecondary('', '')" class="px-2 py-0.5 rounded bg-gray-200 text-gray-600 text-[10px] font-bold">
+                    ✕ إخفاء الزر الثاني
+                  </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input type="text" id="nms-btn2-text" oninput="window.lotusApp.updateMagazineLivePreview()" placeholder="نص الزر الثانوي (مثال: اطلب عبر واتساب)" value="اطلب عبر واتساب" class="w-full p-2 bg-white rounded-lg border border-gray-300">
+                  <input type="text" id="nms-btn2-link" oninput="window.lotusApp.updateMagazineLivePreview()" placeholder="رابط الزر (مثال: https://wa.me/...)" value="https://wa.me/201105746118" class="w-full p-2 bg-white rounded-lg border border-gray-300 font-mono text-[11px] text-left">
+                </div>
+              </div>
+
+              <!-- صورة غلاف المجلة مع مكتبة سريعة جاهزة -->
+              <div class="space-y-2">
+                <label class="block font-bold">9. صورة غلاف المجلة *</label>
+                <div class="flex items-center gap-3">
+                  <label class="flex-1 cursor-pointer py-2.5 px-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 flex items-center justify-center gap-2">
+                    <i data-lucide="upload" class="w-4 h-4 text-rose-800"></i>
+                    <span id="nms-img-label">رفع صورة جديدة من جهازك</span>
+                    <input type="file" accept="image/*" onchange="window.lotusApp.handleMagazineImageUpload(event)" class="hidden">
+                  </label>
+                  <input type="text" id="nms-image-url" oninput="window.lotusApp.updateMagazineLivePreview()" placeholder="أو رابط الصورة (assets/...)" value="assets/products/p01.jpg" class="flex-1 p-2.5 rounded-xl border border-gray-300 text-left font-mono text-[11px]">
+                </div>
+
+                <!-- صور جاهزة سريعة من أعمال المتجر للاختيار بضغطة واحدة -->
+                <div class="flex items-center gap-2 overflow-x-auto py-1">
+                  <span class="text-[10px] text-gray-500 shrink-0">أو اختر صورة جاهزة:</span>
+                  <button type="button" onclick="window.lotusApp.selectMagazineQuickImage('assets/products/p01.jpg')" class="w-8 h-8 rounded-lg overflow-hidden border hover:border-rose-700 shrink-0">
+                    <img src="assets/products/p01.jpg" class="w-full h-full object-cover">
+                  </button>
+                  <button type="button" onclick="window.lotusApp.selectMagazineQuickImage('assets/products/p02.jpg')" class="w-8 h-8 rounded-lg overflow-hidden border hover:border-rose-700 shrink-0">
+                    <img src="assets/products/p02.jpg" class="w-full h-full object-cover">
+                  </button>
+                  <button type="button" onclick="window.lotusApp.selectMagazineQuickImage('assets/products/p03.jpg')" class="w-8 h-8 rounded-lg overflow-hidden border hover:border-rose-700 shrink-0">
+                    <img src="assets/products/p03.jpg" class="w-full h-full object-cover">
+                  </button>
+                  <button type="button" onclick="window.lotusApp.selectMagazineQuickImage('assets/products/p04.jpg')" class="w-8 h-8 rounded-lg overflow-hidden border hover:border-rose-700 shrink-0">
+                    <img src="assets/products/p04.jpg" class="w-full h-full object-cover">
+                  </button>
+                  <button type="button" onclick="window.lotusApp.selectMagazineQuickImage('assets/products/p08.jpg')" class="w-8 h-8 rounded-lg overflow-hidden border hover:border-rose-700 shrink-0">
+                    <img src="assets/products/p08.jpg" class="w-full h-full object-cover">
+                  </button>
+                </div>
+              </div>
+
+              <!-- أزرار الحفظ والإلغاء -->
+              <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
+                <button type="button" onclick="window.lotusApp.closeEditMagazineSlide()" class="px-4 py-2.5 rounded-xl text-gray-600 hover:bg-gray-100 font-bold">إلغاء</button>
+                <button type="submit" class="px-7 py-2.5 rounded-xl btn-primary font-bold shadow flex items-center gap-2">
+                  <i data-lucide="check-check" class="w-4 h-4"></i>
+                  <span>حفظ ونشر التعديلات في السلايدر الآن</span>
+                </button>
+              </div>
+            </form>
+
+            <!-- الطرف الأيسر: المعاينة الحية الفورية (Live Side-by-Side Preview) -->
+            <div class="lg:col-span-5 sticky top-6 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-gray-900 text-xs flex items-center gap-1.5">
+                  <i data-lucide="eye" class="w-4 h-4 text-amber-600"></i>
+                  <span>معاينة حية لشكل الغلاف في واجهة المتجر:</span>
+                </span>
+                <span class="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  ● تتحدث تلقائياً
+                </span>
+              </div>
+
+              <div id="magazine-live-preview-box" class="rounded-3xl overflow-hidden shadow-2xl border border-gray-800 transition-all duration-300">
+                <!-- سيتم تعبئتها بواسطة updateMagazineLivePreview() -->
+              </div>
+              <p class="text-[11px] text-gray-500 text-center">هكذا بالضبط سيظهر هذا الغلاف لزوار متجرك في الصفحة الرئيسية</p>
             </div>
-          </form>
+          </div>
         </div>
 
         <!-- قائمة أغلفة المجلة الحالية -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          ${slides.map((slide, idx) => `
-            <div class="p-4 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between hover:border-rose-200 transition">
-              <div class="flex items-start gap-3">
-                <img src="${slide.image}" alt="${slide.title}" class="w-24 h-24 rounded-xl object-cover border border-gray-200 shrink-0">
-                <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2 mb-1 flex-wrap">
-                    <span class="bg-rose-50 text-rose-900 border border-rose-100 px-2 py-0.5 rounded text-[10px] font-bold">${slide.issue || 'إصدار المجلة'}</span>
-                    ${slide.badge ? `<span class="bg-amber-50 text-amber-900 border border-amber-100 px-2 py-0.5 rounded text-[10px] font-bold">${slide.badge}</span>` : ''}
-                    <span class="px-2 py-0.5 rounded text-[10px] font-bold ${slide.active !== false ? 'bg-emerald-50 text-emerald-800' : 'bg-gray-100 text-gray-500'}">
-                      ${slide.active !== false ? '● معروض الآن' : '○ متوقف'}
-                    </span>
-                  </div>
-                  <h5 class="font-bold text-gray-900 text-sm truncate">${slide.title}</h5>
-                  <p class="text-gray-500 text-[11px] line-clamp-2 mt-0.5">${slide.subtitle || ''}</p>
-                  <div class="flex items-center gap-2 mt-2 text-[10px] text-gray-400">
-                    <span>الزر: <strong>${slide.btn1Text || 'تسوق الآن'}</strong> (${slide.btn1Link || '#shop'})</span>
+          ${slides.map((slide, idx) => {
+            const btnText = slide.primaryBtnText || slide.btn1Text || 'تسوق الآن';
+            const btnLink = slide.primaryBtnLink || slide.btn1Link || '#shop';
+            const isImgRight = slide.imagePosition === 'right' || slide.layout === 'right';
+
+            return `
+              <div class="p-4 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between hover:border-rose-200 transition">
+                <div class="flex items-start gap-3">
+                  <img src="${slide.image}" alt="${slide.title}" class="w-24 h-24 rounded-xl object-cover border border-gray-200 shrink-0">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
+                      <span class="bg-rose-50 text-rose-900 border border-rose-100 px-2 py-0.5 rounded text-[10px] font-bold">${slide.issue || 'إصدار المجلة'}</span>
+                      ${slide.badge ? `<span class="bg-amber-50 text-amber-900 border border-amber-100 px-2 py-0.5 rounded text-[10px] font-bold">${slide.badge}</span>` : ''}
+                      <span class="px-2 py-0.5 rounded text-[10px] font-bold ${slide.active !== false ? 'bg-emerald-50 text-emerald-800' : 'bg-gray-100 text-gray-500'}">
+                        ${slide.active !== false ? '● معروض الآن' : '○ متوقف'}
+                      </span>
+                    </div>
+
+                    <div class="flex items-center gap-1.5 flex-wrap mb-1 text-[10px] text-gray-500">
+                      <span class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200">السمة: ${getThemeLabel(slide.theme)}</span>
+                      <span class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200">الصورة: ${isImgRight ? 'يمين' : 'يسار'}</span>
+                    </div>
+
+                    <h5 class="font-bold text-gray-900 text-sm truncate">${slide.title}</h5>
+                    <p class="text-gray-500 text-[11px] line-clamp-2 mt-0.5">${slide.subtitle || ''}</p>
+                    <div class="flex items-center gap-2 mt-2 text-[10px] text-gray-400">
+                      <span>الزر: <strong>${btnText}</strong> (${btnLink})</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div class="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">
-                <button onclick="window.lotusApp.toggleMagazineSlideActive(${idx})" class="px-3 py-1.5 rounded-lg border text-[11px] font-bold transition ${
-                  slide.active !== false ? 'border-amber-200 text-amber-900 bg-amber-50 hover:bg-amber-100' : 'border-emerald-200 text-emerald-900 bg-emerald-50 hover:bg-emerald-100'
-                }">
-                  ${slide.active !== false ? 'إيقاف الغلاف مؤقتاً' : 'تفعيل وعرض في المجلة'}
-                </button>
-                <button onclick="window.lotusApp.handleDeleteMagazineSlide(${idx})" class="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 text-[11px] font-bold transition flex items-center gap-1">
-                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                  <span>حذف الغلاف</span>
-                </button>
+                <div class="flex items-center justify-between pt-3 mt-3 border-t border-gray-100">
+                  <div class="flex items-center gap-1.5">
+                    <button onclick="window.lotusApp.openEditMagazineSlide(${idx})" class="px-3 py-1.5 rounded-lg border border-amber-300 text-amber-900 bg-amber-50 hover:bg-amber-100 text-[11px] font-bold transition flex items-center gap-1">
+                      <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                      <span>تعديل الغلاف ✏️</span>
+                    </button>
+                    <button onclick="window.lotusApp.toggleMagazineSlideActive(${idx})" class="px-3 py-1.5 rounded-lg border text-[11px] font-bold transition ${
+                      slide.active !== false ? 'border-amber-200 text-amber-900 bg-amber-50 hover:bg-amber-100' : 'border-emerald-200 text-emerald-900 bg-emerald-50 hover:bg-emerald-100'
+                    }">
+                      ${slide.active !== false ? 'إيقاف مؤقت' : 'تفعيل'}
+                    </button>
+                  </div>
+                  <button onclick="window.lotusApp.handleDeleteMagazineSlide(${idx})" class="px-3 py-1.5 rounded-lg border border-rose-200 text-rose-700 bg-rose-50 hover:bg-rose-100 text-[11px] font-bold transition flex items-center gap-1">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    <span>حذف</span>
+                  </button>
+                </div>
               </div>
-            </div>
-          `).join('')}
+            `;
+          }).join('')}
         </div>
       </div>
     `;
@@ -3618,6 +4142,140 @@
     renderCurrentPage();
   }
 
+  function openEditHighlightModal(idx) {
+    const occ = state.occasions[idx];
+    if (!occ) return;
+    const modal = document.getElementById('admin-edit-highlight-modal');
+    if (!modal) return;
+
+    state.uploadedEditHighlightImage = null;
+    const occTitle = occ.name || occ.title || '';
+    const occSub = occ.subtitle || '';
+    const occQuery = occ.query || occTitle;
+    const occTag = occ.tag || occ.badge || '';
+    const occImg = occ.image || 'assets/products/p01.jpg';
+
+    modal.innerHTML = `
+      <div class="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl border border-gray-200 text-xs">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center">
+              <i data-lucide="circle-dot" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm text-gray-900">تعديل دائرة الهايلايت للمناسبة</h3>
+              <p class="text-[11px] text-gray-500">تعديل العنوان، التصنيف، الصورة، وشارة الدائرة</p>
+            </div>
+          </div>
+          <button onclick="window.lotusApp.closeEditHighlightModal()" class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <form onsubmit="window.lotusApp.handleUpdateHighlight(event, ${idx})" class="space-y-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold mb-1">اسم المناسبة / الهايلايت *</label>
+              <input type="text" id="ehl-title" required value="${escapeHtml(occTitle)}" class="w-full p-2.5 rounded-xl border border-gray-300 bg-white font-bold focus:border-amber-600 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-bold mb-1">كلمة الفلترة / التصنيف (Query)</label>
+              <input type="text" id="ehl-query" value="${escapeHtml(occQuery)}" placeholder="مثال: قراية فاتحة" class="w-full p-2.5 rounded-xl border border-gray-300 bg-white focus:border-amber-600 focus:outline-none">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block font-bold mb-1">النص التوضيحي الصغير</label>
+              <input type="text" id="ehl-subtitle" value="${escapeHtml(occSub)}" placeholder="مثال: باقات ملكية" class="w-full p-2.5 rounded-xl border border-gray-300 bg-white">
+            </div>
+            <div>
+              <label class="block font-bold mb-1">شارة دائرية (Tag/Badge)</label>
+              <input type="text" id="ehl-tag" value="${escapeHtml(occTag)}" placeholder="مثال: الأكثر طلباً / جديد" class="w-full p-2.5 rounded-xl border border-gray-300 bg-white">
+            </div>
+          </div>
+
+          <div>
+            <label class="block font-bold mb-1">صورة الهايلايت الدائرية *</label>
+            <div class="flex items-center gap-3">
+              <div class="w-14 h-14 rounded-full overflow-hidden border-2 border-rose-300 shrink-0 bg-gray-100 shadow-sm flex items-center justify-center">
+                <img id="ehl-preview-img" src="${occImg}" alt="معاينة" class="w-full h-full object-cover">
+              </div>
+              <div class="flex-1 space-y-2">
+                <label class="cursor-pointer py-2 px-3 rounded-xl border border-dashed border-gray-300 bg-gray-50 hover:bg-gray-100 flex items-center justify-center gap-2">
+                  <i data-lucide="upload" class="w-4 h-4 text-rose-800"></i>
+                  <span id="ehl-img-label">اختر صورة جديدة من جهازك</span>
+                  <input type="file" accept="image/*" onchange="window.lotusApp.handleEditHighlightImageUpload(event)" class="hidden">
+                </label>
+                <input type="text" id="ehl-image-url" value="${escapeHtml(occImg)}" placeholder="أو رابط الصورة (assets/...)" class="w-full p-2 rounded-xl border border-gray-300 bg-white text-[11px]">
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+            <button type="button" onclick="window.lotusApp.closeEditHighlightModal()" class="px-4 py-2 rounded-xl text-gray-600 hover:bg-gray-100 font-bold">إلغاء</button>
+            <button type="submit" class="px-6 py-2 rounded-xl btn-primary font-bold shadow flex items-center gap-1.5">
+              <i data-lucide="check" class="w-4 h-4"></i>
+              <span>حفظ تعديل الهايلايت</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    lucide.createIcons();
+  }
+
+  function closeEditHighlightModal() {
+    closeModal('admin-edit-highlight-modal');
+  }
+
+  function handleEditHighlightImageUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      state.uploadedEditHighlightImage = evt.target.result;
+      const previewImg = document.getElementById('ehl-preview-img');
+      const urlInput = document.getElementById('ehl-image-url');
+      const label = document.getElementById('ehl-img-label');
+      if (previewImg) previewImg.src = evt.target.result;
+      if (urlInput) urlInput.value = `assets/highlights/hl-${Date.now()}.jpg`;
+      if (label) label.textContent = 'تم اختيار صورة جديدة بنجاح!';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleUpdateHighlight(e, idx) {
+    e.preventDefault();
+    const occ = state.occasions[idx];
+    if (!occ) return;
+
+    const title = document.getElementById('ehl-title').value.trim();
+    const query = document.getElementById('ehl-query').value.trim() || title;
+    const subtitle = document.getElementById('ehl-subtitle').value.trim();
+    const tag = document.getElementById('ehl-tag').value.trim();
+    const image = state.uploadedEditHighlightImage || document.getElementById('ehl-image-url').value.trim() || occ.image;
+
+    state.occasions[idx] = {
+      ...occ,
+      name: title,
+      title: title,
+      query: query,
+      subtitle: subtitle,
+      tag: tag,
+      badge: tag,
+      image: image
+    };
+
+    saveState('occasions');
+    state.uploadedEditHighlightImage = null;
+    closeEditHighlightModal();
+    showToast(`تم حفظ تعديل هايلايت "${title}" بنجاح! 🌸`);
+    renderCurrentPage();
+  }
+
   function handleAddCustomCategory(e) {
     e.preventDefault();
     const input = document.getElementById('new-cat-input');
@@ -3773,9 +4431,15 @@
                   <img src="${occ.image}" alt="${occName}" class="w-12 h-12 rounded-full object-cover border-2 border-rose-300 shadow-sm mb-1.5">
                   <span class="font-bold text-gray-900 text-xs block truncate w-full" title="${occName}">${occName}</span>
                   <span class="text-[10px] text-gray-500 block truncate w-full">${occSub}</span>
-                  <button onclick="window.lotusApp.handleDeleteHighlight(${idx})" class="mt-2 px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 hover:bg-rose-100 text-[10px] font-bold border border-rose-200 transition">
-                    حذف
-                  </button>
+                  <div class="flex items-center gap-1 mt-2 w-full">
+                    <button type="button" onclick="window.lotusApp.openEditHighlightModal(${idx})" class="flex-1 py-1 px-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 text-[10px] font-bold border border-amber-200 transition flex items-center justify-center gap-1" title="تعديل الهايلايت">
+                      <i data-lucide="edit-3" class="w-3 h-3"></i>
+                      <span>تعديل</span>
+                    </button>
+                    <button type="button" onclick="window.lotusApp.handleDeleteHighlight(${idx})" class="py-1 px-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold border border-rose-200 transition" title="حذف">
+                      <i data-lucide="trash-2" class="w-3 h-3"></i>
+                    </button>
+                  </div>
                 </div>
               `;
             }).join('')}
@@ -4052,11 +4716,15 @@
               <label class="block font-semibold mb-1">سياسة الشحن والتوصيل</label>
               <textarea id="cms-sh" rows="3" class="w-full p-2.5 rounded-lg border border-gray-300">${state.policies.shipping}</textarea>
             </div>
+            <div>
+              <label class="block font-semibold mb-1">سياسة الخصوصية وسرية الإهداء</label>
+              <textarea id="cms-pr" rows="3" class="w-full p-2.5 rounded-lg border border-gray-300">${state.policies.privacy || ''}</textarea>
+            </div>
 
             <div class="flex justify-end pt-2">
               <button type="submit" class="px-6 py-2.5 rounded-xl btn-primary font-bold shadow flex items-center gap-1.5">
                 <i data-lucide="save" class="w-4 h-4"></i>
-                <span>حفظ إعدادات المتجر وبيانات اللوكيشن</span>
+                <span>حفظ كافة نصوص وإعدادات المتجر وبيانات اللوكيشن</span>
               </button>
             </div>
           </div>
@@ -4097,6 +4765,7 @@
     const fbInput = document.getElementById('cms-fb');
     const announcementInput = document.getElementById('cms-announcement');
     const mapInput = document.getElementById('cms-map-input');
+    const prInput = document.getElementById('cms-pr');
 
     if (nameInput) state.storeInfo.name = nameInput.value.trim();
     if (vfInput) state.storeInfo.vodafoneCash = vfInput.value.trim();
@@ -4131,6 +4800,7 @@
     state.policies.about = document.getElementById('cms-ab').value.trim();
     state.policies.exchange = document.getElementById('cms-ex').value.trim();
     state.policies.shipping = document.getElementById('cms-sh').value.trim();
+    if (prInput) state.policies.privacy = prInput.value.trim();
 
     saveState('storeInfo');
     saveState('policies');
@@ -4200,6 +4870,298 @@
       showToast('تم تصفير سجل الطلبات والعمليات التجريبية بنجاح 🧹 المتجر جاهز الآن للإطلاق الفعلي!');
       renderCurrentPage();
     }
+  }
+
+  // ==================== تبويب مقر المتجر واللوكيشن وخريطة Google Maps ====================
+  function renderAdminLocationSection() {
+    const mapUrl = state.storeInfo.locationUrl || state.storeInfo.googleMapsEmbed || 'https://www.google.com/maps';
+    return `
+      <div class="space-y-6 text-xs">
+        <div class="bg-gradient-to-r from-rose-950 via-rose-900 to-rose-950 p-6 rounded-3xl text-white shadow-md flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1.5">
+              <div class="w-10 h-10 rounded-2xl bg-amber-400 text-rose-950 flex items-center justify-center font-bold shadow">
+                <i data-lucide="map-pin" class="w-5 h-5"></i>
+              </div>
+              <h4 class="font-black text-lg text-white font-amiri">مقر المتجر واللوكيشن وخريطة Google Maps</h4>
+            </div>
+            <p class="text-rose-200 text-xs max-w-2xl leading-relaxed">
+              هنا المكان المخصص لتعديل اللوكيشن ورابط الخريطة في أي وقت! فقط ضع رابط خرائط جوجل أو رابط المشاركة أو كود التضمين أو الإحداثيات وسيتم تحديث الخريطة التفاعلية فوراً في كامل الموقع وتذييل الصفحات وصفحة اتصل بنا.
+            </p>
+          </div>
+          <a href="${mapUrl}" target="_blank" class="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-rose-950 font-bold flex items-center gap-2 shadow-lg transition">
+            <i data-lucide="navigation" class="w-4 h-4"></i>
+            <span>فتح واختبار اللوكيشن في تطبيق الخرائط ↗</span>
+          </a>
+        </div>
+
+        <form onsubmit="window.lotusApp.handleSaveLocationSettings(event)" class="space-y-4">
+          <div class="bg-white p-6 rounded-3xl border border-gray-200 shadow-sm space-y-4">
+            <h5 class="font-bold text-gray-900 text-sm flex items-center gap-2">
+              <i data-lucide="settings" class="w-4 h-4 text-rose-800"></i>
+              <span>تعديل رابط الخريطة والعنوان الفعلي للمقر:</span>
+            </h5>
+
+            <div class="p-4 bg-amber-50/80 rounded-2xl border border-amber-200 space-y-2">
+              <label class="block font-bold text-rose-950 text-xs flex items-center gap-1.5">
+                <i data-lucide="link-2" class="w-4 h-4 text-amber-600"></i>
+                <span>رابط اللوكيشن الجديد أو كود خرائط Google (Maps URL / Share Link / Iframe / Coordinates) *</span>
+              </label>
+              <input type="text" id="loc-input" value="${escapeHtml(state.storeInfo.locationInput || state.storeInfo.locationUrl || state.storeInfo.googleMapsEmbed)}" placeholder="الصق هنا أي رابط مثل: https://maps.app.goo.gl/... أو كود iframe أو عنوان المكان" class="w-full p-3 rounded-xl border border-gray-300 font-mono text-xs bg-white focus:border-rose-900 focus:outline-none text-left font-bold">
+              <div class="text-[11px] text-gray-600 flex items-center gap-1.5 pt-1">
+                <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600 shrink-0"></i>
+                <span>مرونة تامة: يقبل النظام روابط المشاركة السريعة من تطبيق الهاتف (maps.app.goo.gl)، وروابط المتصفح الكاملة، وأكواد iframe، وعناوين الأماكن.</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block font-bold mb-1">العنوان الفعلي المكتوب (كما يظهر للزبائن في المتجر) *</label>
+                <input type="text" id="loc-address" value="${escapeHtml(state.storeInfo.address)}" required placeholder="مثال: ٣ شارع سعيد ذو الفقار، المنيل، القاهرة، مصر" class="w-full p-2.5 rounded-xl border border-gray-300 bg-white font-bold">
+              </div>
+              <div>
+                <label class="block font-bold mb-1">مواعيد وساعات العمل واستقبال الزوار *</label>
+                <input type="text" id="loc-hours" value="${escapeHtml(state.storeInfo.openingHours || 'يومياً من 10:00 صباحاً حتى 12:00 منتصف الليل')}" required class="w-full p-2.5 rounded-xl border border-gray-300 bg-white">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block font-bold mb-1">رقم الهاتف والواتساب المعتمد للتواصل *</label>
+                <input type="text" id="loc-phone" value="${escapeHtml(state.storeInfo.phone)}" required class="w-full p-2.5 rounded-xl border border-gray-300 bg-white font-mono font-bold">
+              </div>
+              <div>
+                <label class="block font-bold mb-1">محفظة فودافون كاش المعتمدة لاستلام التحويلات *</label>
+                <input type="text" id="loc-vf" value="${escapeHtml(state.storeInfo.vodafoneCash)}" required class="w-full p-2.5 rounded-xl border border-gray-300 bg-white font-mono font-bold">
+              </div>
+            </div>
+
+            <div class="pt-2">
+              <label class="block font-bold text-gray-700 mb-2 flex items-center justify-between">
+                <span>معاينة الخريطة التفاعلية الحالية لمقر المتجر:</span>
+                <span class="text-[11px] text-gray-400 font-normal">تتحدث الخريطة فور النقر على زر الحفظ أدناه</span>
+              </label>
+              <div class="rounded-2xl overflow-hidden border-2 border-rose-200 shadow-inner h-80 bg-gray-100 relative">
+                <iframe src="${state.storeInfo.googleMapsEmbed}" width="100%" height="100%" style="border:0;" loading="lazy"></iframe>
+              </div>
+            </div>
+
+            <div class="flex justify-end pt-3 border-t border-gray-100">
+              <button type="submit" class="px-8 py-3 rounded-xl btn-primary font-bold shadow-lg flex items-center gap-2">
+                <i data-lucide="check-check" class="w-4 h-4"></i>
+                <span>حفظ وتحديث بيانات اللوكيشن والخريطة فوراً 📍</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    `;
+  }
+
+  function handleSaveLocationSettings(e) {
+    e.preventDefault();
+    const locInput = document.getElementById('loc-input');
+    const adInput = document.getElementById('loc-address');
+    const hoursInput = document.getElementById('loc-hours');
+    const phInput = document.getElementById('loc-phone');
+    const vfInput = document.getElementById('loc-vf');
+
+    if (locInput) {
+      const raw = locInput.value.trim();
+      if (raw) {
+        state.storeInfo.locationInput = raw;
+        const parsed = parseGoogleMapsInput(raw);
+        state.storeInfo.googleMapsEmbed = parsed.embedUrl;
+        state.storeInfo.locationUrl = parsed.locationUrl;
+      }
+    }
+    if (adInput) state.storeInfo.address = adInput.value.trim();
+    if (hoursInput) state.storeInfo.openingHours = hoursInput.value.trim();
+    if (phInput) {
+      state.storeInfo.phone = phInput.value.trim();
+      state.storeInfo.whatsapp = state.storeInfo.phone.replace(/[^0-9]/g, '');
+      if (state.storeInfo.whatsapp.startsWith('01')) state.storeInfo.whatsapp = '2' + state.storeInfo.whatsapp;
+    }
+    if (vfInput) state.storeInfo.vodafoneCash = vfInput.value.trim();
+
+    saveState('storeInfo');
+    showToast('تم تحديث موقع المتجر وخريطة Google Maps وبيانات المقر بنجاح! 📍');
+    renderCurrentPage();
+  }
+
+  // ==================== تبويب إدارة الأسئلة الشائعة والمتكررة (FAQ CMS) ====================
+  function renderAdminFaqSection() {
+    const faqs = state.policies.faq || [];
+    return `
+      <div class="space-y-6 text-xs">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h4 class="font-bold text-gray-900 text-sm">إدارة وتعديل الأسئلة المتكررة (FAQ) (${faqs.length} أسئلة)</h4>
+            <p class="text-gray-500 text-[11px] mt-0.5">تحكم كامل في الأسئلة والأجوبة المعروضة للزبائن في صفحة الأسئلة الشائعة وتذييل الموقع</p>
+          </div>
+          <button onclick="window.lotusApp.toggleNewFaqForm()" class="px-4 py-2.5 rounded-xl btn-primary font-bold flex items-center gap-1.5 shadow">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>إضافة سؤال وجواب جديد</span>
+          </button>
+        </div>
+
+        <!-- نموذج إضافة سؤال جديد -->
+        <div id="admin-new-faq-box" class="hidden p-5 bg-white rounded-3xl border border-indigo-200 shadow-md space-y-3">
+          <div class="flex items-center justify-between border-b border-gray-100 pb-2.5">
+            <h5 class="font-bold text-sm text-indigo-950 flex items-center gap-2">
+              <i data-lucide="help-circle" class="w-4 h-4 text-indigo-700"></i>
+              <span>إضافة سؤال وإجابة جديدة لصفحة الأسئلة المتكررة (FAQ):</span>
+            </h5>
+            <button onclick="window.lotusApp.toggleNewFaqForm()" class="w-6 h-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
+              <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+
+          <form onsubmit="window.lotusApp.handleAddFaq(event)" class="space-y-3">
+            <div>
+              <label class="block font-bold mb-1">نص السؤال *</label>
+              <input type="text" id="nfaq-q" required placeholder="مثال: هل يمكن كتابة كارت إهداء خاص مع الباقة؟" class="w-full p-2.5 rounded-xl border border-gray-300 font-bold focus:border-indigo-700 focus:outline-none">
+            </div>
+            <div>
+              <label class="block font-bold mb-1">نص الإجابة الشافية *</label>
+              <textarea id="nfaq-a" required rows="3" placeholder="مثال: نعم بالتأكيد! نوفر كارت إهداء مجاني أنيق مع كل باقة يمكنك كتابة أي عبارة أو تهنئة بداخله أثناء إتمام الطلب." class="w-full p-2.5 rounded-xl border border-gray-300 focus:border-indigo-700 focus:outline-none leading-relaxed"></textarea>
+            </div>
+            <div class="flex justify-end gap-2 pt-1">
+              <button type="button" onclick="window.lotusApp.toggleNewFaqForm()" class="px-4 py-2 rounded-xl text-gray-600 hover:bg-gray-100 font-bold">إلغاء</button>
+              <button type="submit" class="px-6 py-2 rounded-xl btn-primary font-bold shadow flex items-center gap-1.5">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>إضافة السؤال للأسئلة الشائعة</span>
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- قائمة الأسئلة الحالية -->
+        <div class="space-y-3">
+          ${faqs.map((item, idx) => `
+            <div class="p-4 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col sm:flex-row sm:items-start justify-between gap-4 hover:border-indigo-300 transition">
+              <div class="flex-1 space-y-1.5">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-full bg-indigo-50 text-indigo-800 font-black text-xs flex items-center justify-center shrink-0">${idx + 1}</span>
+                  <h5 class="font-bold text-gray-900 text-sm">${escapeHtml(item.q)}</h5>
+                </div>
+                <p class="text-gray-600 pr-8 leading-relaxed">${escapeHtml(item.a)}</p>
+              </div>
+
+              <div class="flex items-center gap-2 shrink-0 self-end sm:self-start">
+                <button onclick="window.lotusApp.openEditFaqModal(${idx})" class="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold border border-amber-200 flex items-center gap-1 transition" title="تعديل السؤال والإجابة">
+                  <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                  <span>تعديل</span>
+                </button>
+                <button onclick="window.lotusApp.handleDeleteFaq(${idx})" class="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold border border-rose-200 flex items-center gap-1 transition" title="حذف السؤال">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                  <span>حذف</span>
+                </button>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function toggleNewFaqForm() {
+    const box = document.getElementById('admin-new-faq-box');
+    if (box) box.classList.toggle('hidden');
+  }
+
+  function handleAddFaq(e) {
+    e.preventDefault();
+    const qInput = document.getElementById('nfaq-q');
+    const aInput = document.getElementById('nfaq-a');
+    if (!qInput || !aInput) return;
+
+    const q = qInput.value.trim();
+    const a = aInput.value.trim();
+    if (!q || !a) return;
+
+    if (!state.policies.faq) state.policies.faq = [];
+    state.policies.faq.push({ q, a });
+    saveState('policies');
+    showToast('تمت إضافة السؤال الجديد للأسئلة الشائعة بنجاح! ❓');
+    renderCurrentPage();
+  }
+
+  function handleDeleteFaq(idx) {
+    const item = state.policies.faq[idx];
+    if (!item) return;
+    if (confirm(`هل أنت متأكد من حذف هذا السؤال من صفحة FAQ؟\n\n"${item.q}"`)) {
+      state.policies.faq.splice(idx, 1);
+      saveState('policies');
+      showToast('تم حذف السؤال من الأسئلة المتكررة');
+      renderCurrentPage();
+    }
+  }
+
+  function openEditFaqModal(idx) {
+    const item = state.policies.faq[idx];
+    if (!item) return;
+    const modal = document.getElementById('admin-edit-faq-modal');
+    if (!modal) return;
+
+    modal.innerHTML = `
+      <div class="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl border border-gray-200 text-xs">
+        <div class="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-800 flex items-center justify-center">
+              <i data-lucide="help-circle" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 class="font-bold text-sm text-gray-900">تعديل السؤال المتكرر (FAQ)</h3>
+              <p class="text-[11px] text-gray-500">تعديل السؤال والإجابة الظاهرة لجميع الزوار</p>
+            </div>
+          </div>
+          <button onclick="window.lotusApp.closeEditFaqModal()" class="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-600">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <form onsubmit="window.lotusApp.handleUpdateFaq(event, ${idx})" class="space-y-3.5">
+          <div>
+            <label class="block font-bold mb-1">نص السؤال *</label>
+            <input type="text" id="efaq-q" required value="${escapeHtml(item.q)}" class="w-full p-2.5 rounded-xl border border-gray-300 font-bold focus:border-indigo-700 focus:outline-none">
+          </div>
+
+          <div>
+            <label class="block font-bold mb-1">نص الإجابة الشافية *</label>
+            <textarea id="efaq-a" required rows="4" class="w-full p-2.5 rounded-xl border border-gray-300 focus:border-indigo-700 focus:outline-none leading-relaxed">${escapeHtml(item.a)}</textarea>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+            <button type="button" onclick="window.lotusApp.closeEditFaqModal()" class="px-4 py-2 rounded-xl text-gray-600 hover:bg-gray-100 font-bold">إلغاء</button>
+            <button type="submit" class="px-6 py-2 rounded-xl btn-primary font-bold shadow flex items-center gap-1.5">
+              <i data-lucide="check" class="w-4 h-4"></i>
+              <span>حفظ تعديل السؤال</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    lucide.createIcons();
+  }
+
+  function closeEditFaqModal() {
+    closeModal('admin-edit-faq-modal');
+  }
+
+  function handleUpdateFaq(e, idx) {
+    e.preventDefault();
+    const q = document.getElementById('efaq-q').value.trim();
+    const a = document.getElementById('efaq-a').value.trim();
+    if (!q || !a) return;
+
+    state.policies.faq[idx] = { q, a };
+    saveState('policies');
+    closeEditFaqModal();
+    showToast('تم تحديث السؤال والإجابة بنجاح! ✅');
+    renderCurrentPage();
   }
 
   // دوائر ومودال تغيير كلمة المرور للمستخدم أو المدير
@@ -4829,6 +5791,16 @@
     handleSaveMagazineSlide,
     handleDeleteMagazineSlide,
     toggleMagazineSlideActive,
+    openEditMagazineSlide,
+    closeEditMagazineSlide,
+    applyMagazinePresetButton,
+    applyMagazinePresetSecondary,
+    applyMagazinePresetBadge,
+    applyMagazinePresetIssue,
+    setMagazineTheme,
+    setMagazineImagePosition,
+    selectMagazineQuickImage,
+    updateMagazineLivePreview,
 
     // معرض صور وأعمال إنستغرام الحقيقية
     toggleNewShowcaseForm,
@@ -4841,12 +5813,27 @@
     handleHighlightImageUpload,
     handleSaveHighlight,
     handleDeleteHighlight,
+    openEditHighlightModal,
+    closeEditHighlightModal,
+    handleEditHighlightImageUpload,
+    handleUpdateHighlight,
     handleAddCustomCategory,
     handleDeleteCustomCategory,
     handleAddCustomFlowerType,
     handleDeleteCustomFlowerType,
     handleAddCustomColor,
     handleDeleteCustomColor,
+
+    // نظام إدارة موقع المتجر والخريطة
+    handleSaveLocationSettings,
+
+    // نظام الأسئلة الشائعة (FAQ)
+    toggleNewFaqForm,
+    handleAddFaq,
+    handleDeleteFaq,
+    openEditFaqModal,
+    closeEditFaqModal,
+    handleUpdateFaq,
 
     // نظام إلغاء الطلبات وتوثيق الأسباب
     openCancelOrderModal,
