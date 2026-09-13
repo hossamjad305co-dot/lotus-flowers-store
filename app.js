@@ -1094,8 +1094,8 @@
               </div>
             </div>
 
-            <!-- أزرار الإضافة للسلة والطلب -->
-            <div class="pt-4 border-t border-gray-100 flex items-center gap-3">
+            <!-- أزرار الإضافة للسلة والطلب ومشاركة واتساب -->
+            <div class="pt-4 border-t border-gray-100 flex flex-wrap items-center gap-3">
               ${isOutOfStock ? `
                 <button disabled class="flex-1 py-3.5 px-6 rounded-xl bg-gray-200 text-gray-500 font-bold text-sm flex items-center justify-center gap-2 cursor-not-allowed shadow-none">
                   <i data-lucide="slash" class="w-4 h-4"></i>
@@ -1113,6 +1113,10 @@
                   <span>إضافة الباقة إلى السلة</span>
                 </button>
               `}
+              <button type="button" onclick="window.lotusApp.shareProductWhatsApp('${product.id}')" class="py-3.5 px-4 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-sm" title="مشاركة الباقة عبر واتساب">
+                <i data-lucide="share-2" class="w-4 h-4 text-emerald-600"></i>
+                <span class="hidden sm:inline">مشاركة واتساب</span>
+              </button>
             </div>
 
           </div>
@@ -1254,6 +1258,35 @@
     openCartDrawer();
   }
 
+  // مشاركة الباقة عبر واتساب بنقرة واحدة (دعم Web Share API وتطبيق واتساب)
+  function shareProductWhatsApp(productId) {
+    const p = state.products.find(x => String(x.id) === String(productId));
+    if (!p) return;
+    const selectedIdx = state.selectedCardSizes[p.id] || 0;
+    const currentSize = p.sizes && p.sizes[selectedIdx] ? p.sizes[selectedIdx] : (p.sizes && p.sizes[0] ? p.sizes[0] : { name: 'قياسي', price: 500 });
+    const shareUrl = window.location.origin + window.location.pathname + '#product/' + p.id;
+    const shareText = `🌸 إهداء مميز من متجر زهور اللوتس (Lotus Flowers EG):\n\n` +
+      `✨ الباقة: ${p.name}\n` +
+      `🏷️ الكود: ${p.sku}\n` +
+      `💰 السعر: ${currentSize.price} ج.م (${currentSize.name})\n` +
+      `🚚 توصيل فوري طازج في نفس اليوم لجميع مناطق القاهرة والجيزة\n\n` +
+      `🔗 لرؤية الصور وتفاصيل الباقة أو الطلب المباشر:\n${shareUrl}`;
+
+    if (navigator.share) {
+      navigator.share({
+        title: `${p.name} - متجر زهور اللوتس`,
+        text: shareText,
+        url: shareUrl
+      }).catch(err => {
+        if (err.name !== 'AbortError') {
+          window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
+        }
+      });
+    } else {
+      window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
+    }
+  }
+
   // رسم بطاقات المنتجات مع إظهار سعر كل حجم وزر أضف للسلة المباشر
   function renderProductsHtml(productsList) {
     if (productsList.length === 0) {
@@ -1359,6 +1392,9 @@
                 <a href="#product/${p.id}" class="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition" title="عرض التفاصيل وكارت الإهداء">
                   <i data-lucide="eye" class="w-4 h-4"></i>
                 </a>
+                <button type="button" onclick="window.lotusApp.shareProductWhatsApp('${p.id}')" class="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 shadow-sm transition" title="مشاركة الباقة عبر واتساب">
+                  <i data-lucide="share-2" class="w-4 h-4"></i>
+                </button>
                 ${isOutOfStock ? `
                   <button type="button" disabled class="px-3 py-2 rounded-xl bg-gray-100 text-gray-400 font-bold text-xs flex items-center gap-1.5 cursor-not-allowed border border-gray-200" title="هذه الباقة غير متوفرة حالياً">
                     <i data-lucide="slash" class="w-3.5 h-3.5"></i>
@@ -2405,10 +2441,16 @@
             </div>
           </div>
 
-          <!-- شريط بحث الطلبات -->
-          <div class="relative min-w-[240px]">
-            <input type="text" value="${state.ordersSearchQuery}" oninput="window.lotusApp.searchOrders(this.value)" placeholder="ابحث برقم الطلب، الهاتف، أو الاسم..." class="w-full text-xs py-2 pr-8 pl-3 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:outline-none">
-            <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2"></i>
+          <!-- شريط بحث الطلبات وزر تصدير الكشف -->
+          <div class="flex items-center gap-2 flex-wrap">
+            <div class="relative min-w-[220px]">
+              <input type="text" value="${state.ordersSearchQuery}" oninput="window.lotusApp.searchOrders(this.value)" placeholder="ابحث برقم الطلب، الهاتف، أو الاسم..." class="w-full text-xs py-2 pr-8 pl-3 rounded-xl border border-gray-300 bg-gray-50 focus:bg-white focus:outline-none">
+              <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute right-2.5 top-1/2 -translate-y-1/2"></i>
+            </div>
+            <button type="button" onclick="window.lotusApp.exportOrdersToCsv()" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition active:scale-95 whitespace-nowrap" title="تصدير كشف حسابات وطلبات المتجر إلى ملف Excel / CSV">
+              <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+              <span>تصدير كشف حساب (Excel)</span>
+            </button>
           </div>
 
         </div>
@@ -2641,6 +2683,88 @@
     saveState('orders');
     showToast(`تم تحديث الطلب ${orderId} إلى: ${getStatusBadgeText(nextStatus)}`);
     renderCurrentPage();
+  }
+
+  // تصدير كشف حسابات وطلبات المتجر إلى ملف Excel / CSV باللغة العربية مع ترميز UTF-8 BOM
+  function exportOrdersToCsv() {
+    if (!state.orders || state.orders.length === 0) {
+      showToast('لا توجد أي طلبات حالياً لتصديرها');
+      return;
+    }
+
+    const STATUS_MAP = {
+      'pending_payment': 'بانتظار الدفع',
+      'payment_confirmed': 'تم الدفع بنجاح',
+      'preparing': 'قيد التجهيز والتنسيق',
+      'out_for_delivery': 'في الطريق مع المندوب',
+      'delivered': 'تم التسليم بنجاح',
+      'cancelled': 'ملغي'
+    };
+
+    const headers = [
+      'رقم الطلب',
+      'تاريخ ووقت الطلب',
+      'اسم العميل',
+      'هاتف العميل',
+      'اسم المستلم',
+      'هاتف المستلم',
+      'منطقة التوصيل',
+      'العنوان بالتفصيل',
+      'حالة الطلب',
+      'إجمالي المبلغ (ج.م)',
+      'وسيلة الدفع',
+      'رقم محفظة التحويل',
+      'المنتجات والكميات',
+      'رسالة كارت الإهداء',
+      'إهداء سري',
+      'مندوب التوصيل',
+      'سبب الإلغاء والملاحظات'
+    ];
+
+    const escapeCsv = (val) => {
+      if (val === null || val === undefined) return '""';
+      const str = String(val).replace(/"/g, '""');
+      return `"${str}"`;
+    };
+
+    const rows = state.orders.map(o => {
+      const itemsSummary = (o.items || []).map(item => `${item.name} (${item.sizeName || 'عادي'}) × ${item.qty}`).join(' | ');
+      const dateStr = o.createdAt ? new Date(o.createdAt).toLocaleString('ar-EG') : '';
+      return [
+        escapeCsv(o.orderId),
+        escapeCsv(dateStr),
+        escapeCsv(o.customerName || ''),
+        escapeCsv(o.customerPhone || ''),
+        escapeCsv(o.recipientName || ''),
+        escapeCsv(o.recipientPhone || ''),
+        escapeCsv(o.deliveryArea || ''),
+        escapeCsv(o.deliveryAddress || ''),
+        escapeCsv(STATUS_MAP[o.status] || o.status),
+        escapeCsv(o.totalAmount || 0),
+        escapeCsv(o.paymentMethod || 'محفظة فودافون كاش'),
+        escapeCsv(o.vodafoneSenderNumber || ''),
+        escapeCsv(itemsSummary),
+        escapeCsv(o.cardMessage || ''),
+        escapeCsv(o.isAnonymousGift ? 'نعم (سري)' : 'لا'),
+        escapeCsv(o.driverName || ''),
+        escapeCsv(o.cancelReason || '')
+      ].join(',');
+    });
+
+    // إضافة BOM (\uFEFF) لضمان قراءة اللغة العربية بدون أي تشويه في برنامج Excel
+    const csvContent = '\uFEFF' + headers.map(h => `"${h}"`).join(',') + '\r\n' + rows.join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const now = new Date();
+    const dateStamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    link.setAttribute('href', url);
+    link.setAttribute('download', `كشف_طلبات_زهور_اللوتس_${dateStamp}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    showToast('تم تصدير كشف حساب وطلبات المتجر بنجاح إلى ملف Excel / CSV 📊');
   }
 
   function openCancelOrderModal(orderId) {
@@ -6916,6 +7040,7 @@
     // الوظائف الجديدة للتصفية والكتالوج والطلب السريع
     selectCardSize,
     quickAddToCart,
+    shareProductWhatsApp,
     toggleFilter,
     toggleFilterDrawer,
     setPriceRange,
@@ -6923,10 +7048,11 @@
     resetFilters,
     navigateToCategory,
 
-    // نظام إدارة الطلبات المطور وحالات التوصيل
+    // نظام إدارة الطلبات المطور وحالات التوصيل وتصدير الكشوفات
     filterOrders,
     searchOrders,
     advanceOrderStatus,
+    exportOrdersToCsv,
 
     // نظام تعديل المنتجات الحالية المطور والتحكم بالمخزون والظهور
     openEditProductModal,
