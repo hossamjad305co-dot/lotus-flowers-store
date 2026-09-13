@@ -14,7 +14,7 @@
   <!-- ملف التنسيقات -->
   <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-[#fdfaf7] text-slate-800 antialiased selection:bg-rose-900 selection:text-white">
+<body class="bg-[#fdfaf7] text-slate-800 antialiased selection:bg-rose-900 selection:text-white pb-20 md:pb-0">
 
   <!-- شريط الإعلان العلوي السريع -->
   <header class="border-b border-rose-950/10">
@@ -74,14 +74,6 @@
           <a href="#policies" class="hover:text-rose-900 transition">السياسات والتوصيل</a>
           <a href="#contact" class="hover:text-rose-900 transition">اتصل بنا</a>
         </nav>
-
-        <!-- شريط البحث المباشر السريع -->
-        <div class="hidden md:flex flex-1 max-w-xs mx-4">
-          <div class="relative w-full">
-            <input type="text" id="search-input" placeholder="ابحث بكود الباقة أو الاسم (مثال: QF-101)..." class="w-full text-xs py-2 pr-9 pl-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-950 transition">
-            <i data-lucide="search" class="w-3.5 h-3.5 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2"></i>
-          </div>
-        </div>
 
         <!-- أزرار الإجراءات: المستخدم الموحد، الواتساب، وسلة الشراء -->
         <div class="flex items-center gap-2 sm:gap-3">
@@ -348,8 +340,38 @@
   <!-- مودال تعديل السؤال المتكرر (Edit FAQ Modal) -->
   <div id="admin-edit-faq-modal" class="fixed inset-0 bg-black/60 z-50 hidden items-center justify-center p-4 backdrop-blur-custom"></div>
 
+  <!-- مودال محرر الاستوديو المرئي التفاعلي لمجلة الرئيسية (Magazine Studio Modal) -->
+  <div id="magazine-studio-modal" class="fixed inset-0 bg-black/75 z-50 hidden items-center justify-center p-2 sm:p-4 backdrop-blur-custom"></div>
+
+  <!-- شريط التنقل السفلي الفاخر المخصص للهواتف (Luxury Mobile Bottom Navigation) -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg border-t border-rose-100 px-2 py-2 shadow-2xl flex items-center justify-around text-[10px] font-bold text-gray-600">
+    <a href="#home" class="flex flex-col items-center gap-1 hover:text-rose-950 transition active:scale-95 text-rose-950">
+      <i data-lucide="home" class="w-5 h-5 text-rose-900"></i>
+      <span>الرئيسية</span>
+    </a>
+    <a href="#shop" class="flex flex-col items-center gap-1 hover:text-rose-950 transition active:scale-95">
+      <i data-lucide="flower-2" class="w-5 h-5 text-rose-900"></i>
+      <span>الكتالوج</span>
+    </a>
+    <a href="#track" class="flex flex-col items-center gap-1 hover:text-rose-950 transition active:scale-95">
+      <i data-lucide="truck" class="w-5 h-5 text-rose-900"></i>
+      <span>تتبع طلبك</span>
+    </a>
+    <button onclick="window.lotusApp.openCartDrawer()" class="flex flex-col items-center gap-1 relative hover:text-rose-950 transition active:scale-95">
+      <div class="relative">
+        <i data-lucide="shopping-bag" class="w-5 h-5 text-rose-900"></i>
+        <span id="mobile-cart-badge" class="hidden absolute -top-1.5 -right-2 bg-amber-400 text-rose-950 text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-sm">0</span>
+      </div>
+      <span>السلة</span>
+    </button>
+    <a href="https://wa.me/201105746118" target="_blank" class="flex flex-col items-center gap-1 text-emerald-700 hover:text-emerald-800 transition active:scale-95">
+      <i data-lucide="message-circle" class="w-5 h-5 text-emerald-600"></i>
+      <span>واتساب</span>
+    </a>
+  </nav>
+
   <!-- ملفات البيانات والبرمجة -->
-  <script src="data.js?v=20260913_2"></script>
-  <script src="app.js?v=20260913_2"></script>
+  <script src="data.js?v=20260913_4"></script>
+  <script src="app.js?v=20260913_4"></script>
 </body>
 </html>

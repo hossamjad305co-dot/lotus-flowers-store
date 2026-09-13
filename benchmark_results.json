@@ -1,0 +1,38 @@
+{
+  "timestamp": "2026-09-13T06:05:42.373Z",
+  "benchmark": {
+    "totalRequests": 500,
+    "successfulRequests": 500,
+    "totalDurationSec": 0.193,
+    "rps": 2590.7,
+    "avgLatency": 8.37,
+    "minLatency": 2.78,
+    "maxLatency": 46.27,
+    "p50": 6.86,
+    "p95": 26.19,
+    "p99": 32.17
+  },
+  "storage": {
+    "sizes": {
+      "order": 1180,
+      "customer": 280,
+      "product": 750,
+      "magazineSlide": 950
+    },
+    "localStorage": {
+      "capacityBytes": 5242880,
+      "maxOrders": 4443,
+      "maxCustomers": 18724,
+      "maxProducts": 6990
+    },
+    "supabaseFree": {
+      "capacityBytes": 524288000,
+      "maxOrders": 444311,
+      "maxCustomers": 1872457
+    },
+    "supabasePro": {
+      "capacityBytes": 8589934592,
+      "maxOrders": 7279605
+    }
+  }
+}

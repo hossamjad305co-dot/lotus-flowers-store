@@ -62,6 +62,20 @@
     editingMagazineSlideIndex: null,
     selectedMagazineTheme: 'burgundy',
     selectedMagazineLayout: 'left',
+    magazineStudio: {
+      imageScale: 100,
+      imageOffsetX: 0,
+      imageOffsetY: 0,
+      bgType: 'theme', // 'theme' | 'custom'
+      customBgImage: null,
+      customBgOverlay: 0.45,
+      textColor: 'white',
+      textShadow: true,
+      buttonsPosition: 'start',
+      primaryBtnSize: 'normal',
+      publishStatus: 'published',
+      scheduledAt: ''
+    },
 
     // المسار الحالي والتنقل (Routing)
     currentRoute: {
@@ -77,7 +91,8 @@
       sizes: [],
       priceRange: 'all',
       searchQuery: '',
-      sortBy: 'featured'
+      sortBy: 'featured',
+      isDrawerOpen: false
     },
     selectedCardSizes: {}, // { [productId]: sizeIndex }
     ordersFilter: 'all', // all, pending_payment, payment_confirmed, preparing, out_for_delivery, delivered
@@ -370,9 +385,21 @@
     const container = document.getElementById('hero-magazine-container');
     if (!container) return;
 
-    const slides = (state.magazineSlides && state.magazineSlides.length > 0)
-      ? state.magazineSlides.filter(s => s.active !== false)
+    const now = new Date();
+    const allSlides = (state.magazineSlides && state.magazineSlides.length > 0)
+      ? state.magazineSlides
       : INITIAL_MAGAZINE_SLIDES;
+
+    // تصفية الأغلفة حسب حالة النشر والجدولة الزمنية
+    const slides = allSlides.filter(s => {
+      if (s.active === false) return false;
+      if (s.publishStatus === 'draft') return false; // مسودة مخفية
+      if (s.publishStatus === 'scheduled' && s.scheduledAt) {
+        const schedDate = new Date(s.scheduledAt);
+        if (schedDate > now) return false; // لم يحن موعد النشر بعد
+      }
+      return true;
+    });
 
     if (slides.length === 0) {
       container.innerHTML = '';
@@ -385,11 +412,19 @@
 
     const activeSlide = slides[state.currentMagazineSlide] || slides[0];
     const currentThemeBg = getSlideThemeBackground(activeSlide ? (activeSlide.theme || 'burgundy') : 'burgundy');
+    const isCustomBg = !!activeSlide.customBgImage;
+    const bgStyle = isCustomBg
+      ? `background-image: url('${activeSlide.customBgImage}'); background-size: cover; background-position: center;`
+      : `background: ${currentThemeBg};`;
 
     container.innerHTML = `
-      <div id="magazine-slider-root" class="magazine-slider-wrap relative transition-all duration-700" style="background: ${currentThemeBg};">
-        <!-- نمط النقاط المائية الفاخرة بالخلفية -->
-        <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1.2px,transparent_1.2px)] [background-size:20px_20px] pointer-events-none"></div>
+      <div id="magazine-slider-root" class="magazine-slider-wrap relative transition-all duration-700 overflow-hidden" style="${bgStyle}">
+        <!-- طبقة التظليل الشفافة عند استخدام صورة كخلفية أو نمط النقاط المائية -->
+        ${isCustomBg ? `
+          <div class="absolute inset-0 bg-black pointer-events-none" style="opacity: ${activeSlide.customBgOverlay !== undefined ? activeSlide.customBgOverlay : 0.5};"></div>
+        ` : `
+          <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1.2px,transparent_1.2px)] [background-size:20px_20px] pointer-events-none"></div>
+        `}
 
         <!-- أزرار التقليب لليمين واليسار بالسحب والنقر -->
         ${slides.length > 1 ? `
@@ -413,6 +448,22 @@
             const btn2T = slide.secondaryBtnText || slide.btn2Text;
             const btn2L = slide.secondaryBtnLink || slide.btn2Link;
 
+            // خيارات تنسيق الخط والظلال
+            const titleColor = slide.textColor === 'gold' ? '#fde047' : slide.textColor === 'dark' ? '#111827' : '#ffffff';
+            const hasShadow = slide.textShadow !== false;
+            const textShadowStyle = hasShadow ? 'text-shadow: 0 2px 12px rgba(0,0,0,0.85);' : '';
+            const descColorClass = slide.textColor === 'dark' ? 'text-gray-800' : 'text-rose-100/95';
+
+            // خيارات مكان الأزرار
+            const btnJustify = slide.buttonsPosition === 'center' ? 'justify-center' : slide.buttonsPosition === 'end' ? 'justify-center lg:justify-end' : 'justify-center lg:justify-start';
+            const btnSizeClass = slide.primaryBtnSize === 'large' ? 'px-9 py-4 text-sm sm:text-base' : slide.primaryBtnSize === 'compact' ? 'px-5 py-2.5 text-xs' : 'px-7 py-3.5 text-xs sm:text-sm';
+
+            // تحويلات الصورة (إزاحة وتكبير)
+            const scale = (slide.imageScale || 100) / 100;
+            const offsetX = slide.imageOffsetX || 0;
+            const offsetY = slide.imageOffsetY || 0;
+            const imgTransform = `transform: translate(${offsetX}px, ${offsetY}px) scale(${scale});`;
+
             return `
               <div class="magazine-slide ${isActive ? 'active' : ''} py-12 lg:py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto" data-slide-index="${idx}">
                 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
@@ -429,38 +480,38 @@
                       ` : ''}
                     </div>
 
-                    <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight font-amiri text-white">
+                    <h1 class="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-tight font-amiri" style="color: ${titleColor}; ${textShadowStyle}">
                       ${slide.title}
                     </h1>
 
-                    <p class="text-xs sm:text-sm text-rose-100/90 max-w-xl mx-auto lg:mx-0 leading-relaxed font-normal">
+                    <p class="text-xs sm:text-sm ${descColorClass} max-w-xl mx-auto lg:mx-0 leading-relaxed font-normal" style="${textShadowStyle}">
                       ${slide.subtitle}
                     </p>
 
                     <div class="flex items-center justify-center lg:justify-start gap-3 pt-1">
                       ${slide.skuTag ? `
-                        <span class="px-3 py-1 rounded-lg bg-white/10 text-amber-300 font-mono font-bold text-xs border border-white/10">
+                        <span class="px-3 py-1 rounded-lg bg-black/40 text-amber-300 font-mono font-bold text-xs border border-white/15 backdrop-blur-sm">
                           ${slide.skuTag}
                         </span>
                       ` : ''}
                       ${slide.priceTag ? `
-                        <span class="px-3 py-1 rounded-lg bg-rose-900/80 text-white font-bold text-xs border border-rose-700/50">
+                        <span class="px-3 py-1 rounded-lg bg-rose-950/80 text-white font-bold text-xs border border-rose-600/50 backdrop-blur-sm">
                           ${slide.priceTag}
                         </span>
                       ` : ''}
                     </div>
 
                     <!-- أزرار الإجراءات المخصصة بالكامل من المدير -->
-                    <div class="flex flex-wrap items-center justify-center lg:justify-start gap-3 pt-3">
+                    <div class="flex flex-wrap items-center ${btnJustify} gap-3 pt-3">
                       ${btn1T ? `
-                        <a href="${btn1L || '#shop'}" class="px-7 py-3.5 rounded-xl btn-gold text-white font-black text-xs sm:text-sm shadow-xl flex items-center gap-2 transition hover:scale-105">
+                        <a href="${btn1L || '#shop'}" class="${btnSizeClass} rounded-xl btn-gold text-white font-black shadow-xl flex items-center gap-2 transition hover:scale-105">
                           <i data-lucide="shopping-bag" class="w-4 h-4"></i>
                           <span>${btn1T}</span>
                         </a>
                       ` : ''}
 
                       ${btn2T ? `
-                        <a href="${btn2L || 'https://wa.me/201105746118'}" ${btn2L && btn2L.startsWith('http') ? 'target="_blank"' : ''} class="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm border border-white/20 transition flex items-center gap-2">
+                        <a href="${btn2L || 'https://wa.me/201105746118'}" ${btn2L && btn2L.startsWith('http') ? 'target="_blank"' : ''} class="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm border border-white/20 backdrop-blur-sm transition flex items-center gap-2">
                           <i data-lucide="${btn2L && btn2L.includes('wa.me') ? 'message-circle' : 'sparkles'}" class="w-4 h-4 text-amber-300"></i>
                           <span>${btn2T}</span>
                         </a>
@@ -469,11 +520,11 @@
 
                   </div>
 
-                  <!-- صورة الغلاف الاستعراضية الفاخرة -->
+                  <!-- صورة الغلاف الاستعراضية الفاخرة مع تحويلات مساحة العمل -->
                   <div class="${imgColClass}">
-                    <div class="magazine-cover-frame max-w-sm mx-auto aspect-[4/5] bg-gray-900">
-                      <img src="${slide.image}" alt="${slide.title}" class="w-full h-full object-cover">
-                      <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6">
+                    <div class="magazine-cover-frame max-w-sm mx-auto aspect-[4/5] bg-gray-900 overflow-hidden transition-transform duration-300">
+                      <img src="${slide.image}" alt="${slide.title}" class="w-full h-full object-cover transition-transform duration-300" style="${imgTransform}">
+                      <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-6 pointer-events-none">
                         <span class="text-amber-300 text-[11px] font-bold block mb-1">زهور اللوتس • Lotus Flowers</span>
                         <h4 class="text-base font-bold text-white font-amiri line-clamp-1">${slide.title}</h4>
                       </div>
@@ -683,7 +734,12 @@
     `;
   }
 
-  // فلاتر الاختيار المتعدد المربعة (Multi-Select Square Checkboxes)
+  function toggleFilterDrawer() {
+    state.filters.isDrawerOpen = !state.filters.isDrawerOpen;
+    renderCurrentPage();
+  }
+
+  // فلاتر الاختيار المتعدد المربعة المدمجة والأنيقة (Collapsible Luxury Filter Drawer)
   function renderMultiSelectFiltersHtml() {
     const totalSelected = state.filters.categories.length + state.filters.flowerTypes.length + state.filters.colors.length + state.filters.sizes.length + (state.filters.priceRange !== 'all' ? 1 : 0);
 
@@ -699,25 +755,31 @@
       { id: "vase", label: "فازات وصواني متكاملة" }
     ];
 
+    const isOpen = !!state.filters.isDrawerOpen;
+
     return `
-      <div class="bg-white rounded-3xl border border-rose-100 shadow-sm p-5 mb-8">
-        <!-- شريط الرأس للفلاتر مع العداد وزر الإلغاء والترتيب -->
-        <div class="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-gray-100 mb-4">
-          <div class="flex items-center gap-2">
-            <i data-lucide="sliders-horizontal" class="w-4 h-4 text-rose-900"></i>
-            <h3 class="font-bold text-xs sm:text-sm text-gray-900">تصفية متقدمة متعددة الخيارات (إضافة مربعة):</h3>
-            ${totalSelected > 0 ? `
-              <span class="bg-rose-900 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-sm">
-                تم تحديد ${totalSelected}
-              </span>
-            ` : ''}
+      <div class="bg-white rounded-3xl border border-rose-100 shadow-sm p-4 sm:p-5 mb-8 transition-all duration-300">
+        <!-- شريط الرأس الأنيق للفلاتر مع زر الفتح والطي والترتيب -->
+        <div class="flex flex-wrap items-center justify-between gap-3 ${isOpen ? 'pb-4 border-b border-gray-100 mb-4' : ''}">
+          <div class="flex items-center gap-2.5">
+            <button type="button" onclick="window.lotusApp.toggleFilterDrawer()" class="px-4 py-2 rounded-2xl bg-rose-50 hover:bg-rose-100 text-rose-950 font-black text-xs transition flex items-center gap-2 border border-rose-200 shadow-sm">
+              <i data-lucide="sliders-horizontal" class="w-4 h-4 text-rose-800"></i>
+              <span>تصفية وفلاتر متقدمة ⚡</span>
+              ${totalSelected > 0 ? `
+                <span class="bg-rose-900 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm">
+                  ${totalSelected} نشط
+                </span>
+              ` : ''}
+              <i data-lucide="${isOpen ? 'chevron-up' : 'chevron-down'}" class="w-3.5 h-3.5 text-rose-700"></i>
+            </button>
+            <span class="text-[11px] text-gray-500 hidden md:inline">اختر المناسبة ونوع الورد ولونه بكل دقة</span>
           </div>
 
           <div class="flex items-center gap-3">
             <!-- الترتيب -->
             <div class="flex items-center gap-1.5 text-xs text-gray-600">
               <span class="font-semibold">الترتيب:</span>
-              <select onchange="window.lotusApp.setSortBy(this.value)" class="p-1.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-bold text-gray-800">
+              <select onchange="window.lotusApp.setSortBy(this.value)" class="p-1.5 rounded-xl border border-gray-200 bg-gray-50 text-xs font-bold text-gray-800 focus:outline-none">
                 <option value="featured" ${state.filters.sortBy === 'featured' ? 'selected' : ''}>الأكثر تميزاً</option>
                 <option value="price-low" ${state.filters.sortBy === 'price-low' ? 'selected' : ''}>السعر: الأقل أولاً</option>
                 <option value="price-high" ${state.filters.sortBy === 'price-high' ? 'selected' : ''}>السعر: الأعلى أولاً</option>
@@ -733,8 +795,9 @@
           </div>
         </div>
 
-        <!-- شبكة مربعات الاختيار الأربعة المربعة -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-xs">
+        <!-- شبكة مربعات الاختيار الأربعة المربعة (تظهر عند النقر على الزر فقط) -->
+        ${isOpen ? `
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-xs pt-1">
           
           <!-- 1. المناسبة والتصنيف -->
           <div>
@@ -822,6 +885,7 @@
           </div>
 
         </div>
+        ` : ''}
       </div>
     `;
   }
@@ -3266,38 +3330,52 @@
     state.uploadedMagazineImage = null;
     state.selectedMagazineTheme = 'burgundy';
     state.selectedMagazineLayout = 'left';
+    state.magazineStudio = {
+      imageScale: 100,
+      imageOffsetX: 0,
+      imageOffsetY: 0,
+      bgType: 'theme',
+      customBgImage: null,
+      customBgOverlay: 0.45,
+      textColor: 'white',
+      textShadow: true,
+      buttonsPosition: 'start',
+      primaryBtnSize: 'normal',
+      publishStatus: 'published',
+      scheduledAt: ''
+    };
+
     const box = document.getElementById('admin-new-magazine-box');
     if (box) {
-      box.classList.toggle('hidden');
-      if (!box.classList.contains('hidden')) {
-        // تعيين قيم افتراضية نظيفة
-        const issueInput = document.getElementById('nms-issue');
-        const badgeInput = document.getElementById('nms-badge');
-        const tagInput = document.getElementById('nms-tag');
-        const titleInput = document.getElementById('nms-title');
-        const subtitleInput = document.getElementById('nms-subtitle');
-        const btn1T = document.getElementById('nms-btn1-text');
-        const btn1L = document.getElementById('nms-btn1-link');
-        const btn2T = document.getElementById('nms-btn2-text');
-        const btn2L = document.getElementById('nms-btn2-link');
-        const imgUrl = document.getElementById('nms-image-url');
+      box.classList.remove('hidden');
 
-        if (issueInput) issueInput.value = 'العدد الملكي • ربيع 2026';
-        if (badgeInput) badgeInput.value = 'تنسيق حصري لزهور اللوتس';
-        if (tagInput) tagInput.value = 'زهور اللوتس • المنيل';
-        if (titleInput) titleInput.value = 'صواني قراية الفاتحة والخطوبة الفاخرة';
-        if (subtitleInput) subtitleInput.value = 'تنسيقات ملكية منتقاة بأجود زهور الجوري والبيبي روز مع أماكن مخصصة للشبكة والمصحف والشوكولاتة.';
-        if (btn1T) btn1T.value = 'تصفح صواني الفاتحة';
-        if (btn1L) btn1L.value = '#shop';
-        if (btn2T) btn2T.value = 'طلب مخصوص عبر واتساب';
-        if (btn2L) btn2L.value = 'https://wa.me/201105746118';
-        if (imgUrl) imgUrl.value = 'assets/products/p01.jpg';
+      // تعيين قيم افتراضية نظيفة
+      const issueInput = document.getElementById('nms-issue');
+      const badgeInput = document.getElementById('nms-badge');
+      const tagInput = document.getElementById('nms-tag');
+      const titleInput = document.getElementById('nms-title');
+      const subtitleInput = document.getElementById('nms-subtitle');
+      const btn1T = document.getElementById('nms-btn1-text');
+      const btn1L = document.getElementById('nms-btn1-link');
+      const btn2T = document.getElementById('nms-btn2-text');
+      const btn2L = document.getElementById('nms-btn2-link');
+      const imgUrl = document.getElementById('nms-image-url');
 
-        const formTitle = document.getElementById('admin-magazine-form-title');
-        if (formTitle) formTitle.textContent = 'إضافة صفحة / غلاف جديد للمجلة:';
-        updateMagazineLivePreview();
-        box.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      if (issueInput) issueInput.value = 'العدد الملكي • ربيع 2026';
+      if (badgeInput) badgeInput.value = 'تنسيق حصري لزهور اللوتس';
+      if (tagInput) tagInput.value = 'زهور اللوتس • المنيل';
+      if (titleInput) titleInput.value = 'صواني قراية الفاتحة والخطوبة الفاخرة';
+      if (subtitleInput) subtitleInput.value = 'تنسيقات ملكية منتقاة بأجود زهور الجوري والبيبي روز مع أماكن مخصصة للشبكة والمصحف والشوكولاتة.';
+      if (btn1T) btn1T.value = 'تصفح صواني الفاتحة';
+      if (btn1L) btn1L.value = '#shop';
+      if (btn2T) btn2T.value = 'طلب مخصوص عبر واتساب';
+      if (btn2L) btn2L.value = 'https://wa.me/201105746118';
+      if (imgUrl) imgUrl.value = 'assets/products/p01.jpg';
+
+      const formTitle = document.getElementById('admin-magazine-form-title');
+      if (formTitle) formTitle.textContent = 'إضافة صفحة / غلاف جديد للمجلة:';
+      updateMagazineLivePreview();
+      box.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }
 
@@ -3309,6 +3387,21 @@
     state.uploadedMagazineImage = null;
     state.selectedMagazineTheme = slide.theme || 'burgundy';
     state.selectedMagazineLayout = slide.imagePosition || slide.layout || 'left';
+
+    state.magazineStudio = {
+      imageScale: slide.imageScale || 100,
+      imageOffsetX: slide.imageOffsetX || 0,
+      imageOffsetY: slide.imageOffsetY || 0,
+      bgType: slide.customBgImage ? 'custom' : 'theme',
+      customBgImage: slide.customBgImage || null,
+      customBgOverlay: slide.customBgOverlay !== undefined ? slide.customBgOverlay : 0.45,
+      textColor: slide.textColor || 'white',
+      textShadow: slide.textShadow !== false,
+      buttonsPosition: slide.buttonsPosition || 'start',
+      primaryBtnSize: slide.primaryBtnSize || 'normal',
+      publishStatus: slide.publishStatus || (slide.active !== false ? 'published' : 'draft'),
+      scheduledAt: slide.scheduledAt || ''
+    };
 
     const box = document.getElementById('admin-new-magazine-box');
     if (box) {
@@ -3360,6 +3453,28 @@
     updateMagazineLivePreview();
   }
 
+  function applyMagazinePrimaryPreset(key) {
+    const presets = {
+      'fatiha': { text: 'تصفح صواني الفاتحة والخطوبة 💍', link: '#shop?category=صواني قراية فاتحة 💍' },
+      'love': { text: 'تصفح باقات الحب الملكية ❤️', link: '#shop?category=حب ورومانسية ❤️' },
+      'grad': { text: 'تصفح باقات التخرج والنجاح 🎓', link: '#shop?category=تخرج واحتفال 🎓' },
+      'wedding': { text: 'تصفح مسكات وباقات العرائس 👰', link: '#shop?category=زواج ومسكات عرائس 👰' },
+      'baby': { text: 'تصفح باقات المولود الجديد 🧸', link: '#shop?category=مولود جديد 🧸' },
+      'catalog': { text: 'تصفح كامل كتالوج الباقات 💐', link: '#shop' },
+      'whatsapp': { text: 'طلب وتنسيق مخصوص عبر واتساب 💬', link: 'https://wa.me/201105746118' },
+      'location': { text: 'مقر المتجر وخريطة Google Maps 📍', link: '#contact' },
+      'smart_finder': { text: 'المساعد الذكي لاختيار الهدية ⚡', link: '#smart-finder' }
+    };
+    const p = presets[key];
+    if (p) {
+      const btnText = document.getElementById('nms-btn1-text');
+      const btnLink = document.getElementById('nms-btn1-link');
+      if (btnText) btnText.value = p.text;
+      if (btnLink) btnLink.value = p.link;
+      updateMagazineLivePreview();
+    }
+  }
+
   function applyMagazinePresetSecondary(text, link) {
     const btnText = document.getElementById('nms-btn2-text');
     const btnLink = document.getElementById('nms-btn2-link');
@@ -3382,6 +3497,7 @@
 
   function setMagazineTheme(theme) {
     state.selectedMagazineTheme = theme;
+    state.magazineStudio.bgType = 'theme';
     updateThemeButtonsVisual();
     updateMagazineLivePreview();
   }
@@ -3464,13 +3580,39 @@
     const theme = state.selectedMagazineTheme || 'burgundy';
     const layout = state.selectedMagazineLayout || 'left';
 
-    const bgGradient = getSlideThemeBackground(theme);
+    const studio = state.magazineStudio;
+    const isCustomBg = studio.bgType === 'custom' && !!studio.customBgImage;
+    const bgStyle = isCustomBg
+      ? `background-image: url('${studio.customBgImage}'); background-size: cover; background-position: center;`
+      : `background: ${getSlideThemeBackground(theme)};`;
+
     const isImgRight = layout === 'right';
+    const titleColor = studio.textColor === 'gold' ? '#fde047' : studio.textColor === 'dark' ? '#111827' : '#ffffff';
+    const textShadowStyle = studio.textShadow !== false ? 'text-shadow: 0 2px 10px rgba(0,0,0,0.85);' : '';
+
+    const btnJustify = studio.buttonsPosition === 'center' ? 'justify-center' : studio.buttonsPosition === 'end' ? 'justify-center md:justify-end' : 'justify-center md:justify-start';
+    const btnSizeClass = studio.primaryBtnSize === 'large' ? 'px-6 py-2.5 text-xs font-black' : studio.primaryBtnSize === 'compact' ? 'px-3.5 py-1.5 text-[11px]' : 'px-4 py-2 text-xs font-bold';
+
+    const scale = (studio.imageScale || 100) / 100;
+    const offsetX = studio.imageOffsetX || 0;
+    const offsetY = studio.imageOffsetY || 0;
+    const imgTransform = `transform: translate(${offsetX}px, ${offsetY}px) scale(${scale});`;
+
+    const pubStatus = studio.publishStatus || 'published';
+    const statusBadge = pubStatus === 'draft'
+      ? `<span class="bg-amber-400 text-rose-950 text-[9px] font-black px-2 py-0.5 rounded shadow">⏸️ مسودة مخفية</span>`
+      : pubStatus === 'scheduled'
+      ? `<span class="bg-blue-400 text-gray-950 text-[9px] font-black px-2 py-0.5 rounded shadow">⏰ مجدول (${escapeHtml(studio.scheduledAt || 'لاحقاً')})</span>`
+      : `<span class="bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded shadow">● منشور للزوار</span>`;
 
     previewContainer.innerHTML = `
-      <div class="relative overflow-hidden p-6 rounded-2xl text-white select-none transition-all duration-500" style="background: ${bgGradient}; min-height: 380px;">
-        <!-- نمط النقاط المائية -->
-        <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1.2px,transparent_1.2px)] [background-size:16px_16px] pointer-events-none"></div>
+      <div class="relative overflow-hidden p-6 rounded-2xl text-white select-none transition-all duration-500" style="${bgStyle}; min-height: 380px;">
+        <!-- طبقة التظليل الشفافة إذا كانت خلفية مخصصة أو نمط النقاط -->
+        ${isCustomBg ? `
+          <div class="absolute inset-0 bg-black pointer-events-none" style="opacity: ${studio.customBgOverlay !== undefined ? studio.customBgOverlay : 0.45};"></div>
+        ` : `
+          <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1.2px,transparent_1.2px)] [background-size:16px_16px] pointer-events-none"></div>
+        `}
 
         <div class="relative z-10 flex flex-col ${isImgRight ? 'md:flex-row-reverse' : 'md:flex-row'} items-center gap-5">
           <!-- تفاصيل النصوص -->
@@ -3482,19 +3624,323 @@
                   ${escapeHtml(badge)}
                 </span>
               ` : ''}
+              ${statusBadge}
             </div>
 
-            <h3 class="text-xl sm:text-2xl font-black font-amiri text-white leading-tight">
+            <h3 class="text-xl sm:text-2xl font-black font-amiri leading-tight" style="color: ${titleColor}; ${textShadowStyle}">
               ${escapeHtml(title)}
             </h3>
 
-            <p class="text-[11px] text-rose-100/90 leading-relaxed max-w-sm">
+            <p class="text-[11px] ${studio.textColor === 'dark' ? 'text-gray-800' : 'text-rose-100/90'} leading-relaxed max-w-sm" style="${textShadowStyle}">
               ${escapeHtml(subtitle)}
             </p>
 
-            <div class="flex flex-wrap items-center justify-center ${isImgRight ? 'md:justify-start' : 'md:justify-start'} gap-2 pt-1">
+            <div class="flex flex-wrap items-center ${btnJustify} gap-2 pt-1">
               ${btn1Text ? `
-                <div class="px-4 py-2 rounded-xl btn-gold text-white font-black text-xs shadow flex items-center gap-1.5">
+                <div class="${btnSizeClass} rounded-xl btn-gold text-white font-black shadow flex items-center gap-1.5">
+                  <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i>
+                  <span>${escapeHtml(btn1Text)}</span>
+                </div>
+              ` : ''}
+              ${btn2Text ? `
+                <div class="px-3.5 py-2 rounded-xl bg-white/10 text-white font-bold text-xs border border-white/20 backdrop-blur-sm flex items-center gap-1.5">
+                  <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-300"></i>
+                  <span>${escapeHtml(btn2Text)}</span>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- صورة الغلاف مع التحويلات المباشرة -->
+          <div class="w-40 sm:w-48 shrink-0">
+            <div class="relative rounded-2xl overflow-hidden shadow-2xl aspect-[4/5] bg-gray-900 border-2 border-white/20">
+              <img src="${image}" alt="معاينة الغلاف" class="w-full h-full object-cover transition-transform duration-200" style="${imgTransform}">
+              <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-3 pointer-events-none">
+                <span class="text-amber-300 text-[9px] font-bold block mb-0.5">زهور اللوتس • Lotus Flowers</span>
+                <span class="text-xs font-bold text-white font-amiri truncate block" style="color: ${titleColor}; ${textShadowStyle}">${escapeHtml(title)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="absolute bottom-2 left-3 text-[9px] text-white/60 font-mono flex items-center gap-2">
+          <span>المعاينة: (${isCustomBg ? 'خلفية صورة' : getThemeLabel(theme)} • ${isImgRight ? 'صورة يمين' : 'صورة يسار'})</span>
+          <span>الحجم: ${studio.imageScale}%</span>
+        </div>
+      </div>
+    `;
+    lucide.createIcons();
+  }
+
+  // ==================== استوديو التنسيق المرئي التفاعلي (Interactive Studio Canvas) ====================
+  function openMagazineStudio() {
+    const modal = document.getElementById('magazine-studio-modal');
+    if (!modal) return;
+
+    const studio = state.magazineStudio;
+    const title = document.getElementById('nms-title')?.value.trim() || 'صواني قراية الفاتحة والخطوبة الفاخرة';
+    const subtitle = document.getElementById('nms-subtitle')?.value.trim() || 'تنسيقات ملكية مزينة بأجود زهور الجوري الطبيعي...';
+    const currentImg = state.uploadedMagazineImage || document.getElementById('nms-image-url')?.value.trim() || 'assets/products/p01.jpg';
+
+    modal.innerHTML = `
+      <div class="bg-gray-950 text-white rounded-3xl w-full max-w-5xl border border-rose-900/60 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+        <!-- شريط رأس الاستوديو -->
+        <div class="flex items-center justify-between px-6 py-3.5 border-b border-gray-800 bg-gray-900/90">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-300 text-rose-950 flex items-center justify-center font-bold shadow">
+              <i data-lucide="palette" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="font-black text-sm text-white flex items-center gap-2">
+                <span>محرر مساحة العمل والتنسيق المباشر (Studio Canvas)</span>
+                <span class="bg-amber-400 text-rose-950 text-[10px] font-black px-2 py-0.5 rounded-full">حي وتفاعلي</span>
+              </h3>
+              <p class="text-[11px] text-gray-400">تحكم بحجم وموضع الصورة، الخلفية المخصصة، ظلال الخطوط والأزرار والجدولة في مساحة عمل سريعة</p>
+            </div>
+          </div>
+          <button onclick="window.lotusApp.closeMagazineStudio()" class="w-8 h-8 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center text-gray-300 transition">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- محتوى الاستوديو: عمودين متفاعلين -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 p-6 overflow-y-auto text-xs">
+          
+          <!-- الطرف الأيسر: لوحة المعاينة المباشرة للغلاف (Canvas Viewport) -->
+          <div class="lg:col-span-7 space-y-3">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-amber-300 flex items-center gap-1.5">
+                <i data-lucide="monitor" class="w-4 h-4"></i>
+                <span>لوحة الغلاف المباشرة (Canvas Viewport):</span>
+              </span>
+              <span class="text-[10px] text-gray-400 font-mono">تتفاعل فوراً مع أدوات التحكم</span>
+            </div>
+
+            <!-- حاوية المعاينة للاستوديو -->
+            <div id="studio-canvas-preview" class="rounded-2xl overflow-hidden border border-white/20 shadow-2xl transition-all duration-300 relative" style="min-height: 360px;">
+              <!-- سيتم رسمها عبر updateStudioCanvasPreview() -->
+            </div>
+
+            <!-- أزرار الإزاحة السريعة -->
+            <div class="p-3 bg-gray-900/80 rounded-2xl border border-gray-800 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span class="text-[11px] text-gray-300 font-bold">تحريك سريع للصورة:</span>
+              <div class="flex items-center gap-1">
+                <button type="button" onclick="window.lotusApp.nudgeStudioImage(0, -10)" class="w-7 h-7 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 flex items-center justify-center text-xs" title="أعلى">↑</button>
+                <button type="button" onclick="window.lotusApp.nudgeStudioImage(0, 10)" class="w-7 h-7 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 flex items-center justify-center text-xs" title="أسفل">↓</button>
+                <button type="button" onclick="window.lotusApp.nudgeStudioImage(-10, 0)" class="w-7 h-7 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 flex items-center justify-center text-xs" title="يمين">→</button>
+                <button type="button" onclick="window.lotusApp.nudgeStudioImage(10, 0)" class="w-7 h-7 rounded-lg bg-gray-800 hover:bg-gray-700 text-gray-200 flex items-center justify-center text-xs" title="يسار">←</button>
+              </div>
+              <button type="button" onclick="window.lotusApp.resetStudioImageTransform()" class="text-[11px] text-amber-400 hover:underline font-bold">
+                إعادة ضبط الصورة للمركز ↺
+              </button>
+            </div>
+          </div>
+
+          <!-- الطرف الأيمن: أدوات التحكم الدقيقة (Studio Controls) -->
+          <div class="lg:col-span-5 space-y-4 pr-1">
+            
+            <!-- 1. التحكم في حجم الصورة (Scale Slider) -->
+            <div class="p-3.5 bg-gray-900/90 rounded-2xl border border-gray-800 space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-gray-200 flex items-center gap-1.5">
+                  <i data-lucide="maximize" class="w-3.5 h-3.5 text-amber-400"></i>
+                  <span>حجم وتكبير الصورة:</span>
+                </span>
+                <span id="studio-scale-label" class="text-amber-400 font-mono font-bold">${studio.imageScale}%</span>
+              </div>
+              <input type="range" id="studio-scale-slider" min="60" max="150" value="${studio.imageScale}" oninput="window.lotusApp.onStudioScaleChange(this.value)" class="w-full accent-amber-500 cursor-pointer">
+              <div class="flex justify-between text-[10px] text-gray-500 font-mono">
+                <span>تصغير 60%</span>
+                <span>طبيعي 100%</span>
+                <span>تكبير 150%</span>
+              </div>
+            </div>
+
+            <!-- 2. موضع الصورة بالنسبة للنص -->
+            <div class="p-3 bg-gray-900/90 rounded-2xl border border-gray-800 space-y-1.5">
+              <span class="font-bold text-gray-200 block">مكان الصورة وتنسيق الغلاف:</span>
+              <div class="grid grid-cols-2 gap-2">
+                <button type="button" onclick="window.lotusApp.setStudioLayout('left')" id="studio-layout-left" class="py-1.5 px-3 rounded-xl border text-center transition font-bold ${state.selectedMagazineLayout !== 'right' ? 'bg-amber-400 text-gray-950 border-amber-300' : 'bg-gray-800 text-gray-400 border-gray-700'}">
+                  الصورة يسار ◧
+                </button>
+                <button type="button" onclick="window.lotusApp.setStudioLayout('right')" id="studio-layout-right" class="py-1.5 px-3 rounded-xl border text-center transition font-bold ${state.selectedMagazineLayout === 'right' ? 'bg-amber-400 text-gray-950 border-amber-300' : 'bg-gray-800 text-gray-400 border-gray-700'}">
+                  الصورة يمين ◨
+                </button>
+              </div>
+            </div>
+
+            <!-- 3. خلفية الغلاف (ألوان ملكية أو صورة كاملة) -->
+            <div class="p-3.5 bg-gray-900/90 rounded-2xl border border-gray-800 space-y-2.5">
+              <span class="font-bold text-gray-200 block">خلفية الغلاف (صورة أو تدرج لوني):</span>
+              <div class="flex gap-2">
+                <button type="button" onclick="window.lotusApp.setStudioBgMode('theme')" id="studio-bg-mode-theme" class="flex-1 py-1 px-2 rounded-lg font-bold border text-center ${studio.bgType !== 'custom' ? 'bg-amber-400 text-gray-950 border-amber-300' : 'bg-gray-800 text-gray-400 border-gray-700'}">ألوان ملكية</button>
+                <button type="button" onclick="window.lotusApp.setStudioBgMode('custom')" id="studio-bg-mode-custom" class="flex-1 py-1 px-2 rounded-lg font-bold border text-center ${studio.bgType === 'custom' ? 'bg-amber-400 text-gray-950 border-amber-300' : 'bg-gray-800 text-gray-400 border-gray-700'}">صورة مخصصة 🖼️</button>
+              </div>
+
+              <div id="studio-custom-bg-controls" class="${studio.bgType === 'custom' ? '' : 'hidden'} space-y-2 pt-1 border-t border-gray-800">
+                <div class="flex items-center gap-2">
+                  <label class="cursor-pointer py-1.5 px-3 rounded-lg bg-gray-800 hover:bg-gray-700 text-[11px] font-bold border border-gray-700 text-amber-300 flex items-center gap-1.5">
+                    <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                    <span>رفع صورة خلفية</span>
+                    <input type="file" accept="image/*" onchange="window.lotusApp.handleStudioBgUpload(event)" class="hidden">
+                  </label>
+                  <input type="text" id="studio-bg-url-input" oninput="window.lotusApp.onStudioBgUrlChange(this.value)" placeholder="أو رابط الصورة..." value="${studio.customBgImage || ''}" class="flex-1 p-1.5 rounded-lg bg-gray-950 border border-gray-700 text-[11px] text-gray-300 font-mono">
+                </div>
+                <div class="space-y-1">
+                  <div class="flex justify-between text-[10px] text-gray-400">
+                    <span>درجة تظليل وتعتيم الخلفية:</span>
+                    <span id="studio-overlay-label" class="font-mono text-amber-400">${Math.round(studio.customBgOverlay * 100)}%</span>
+                  </div>
+                  <input type="range" min="10" max="90" value="${Math.round(studio.customBgOverlay * 100)}" oninput="window.lotusApp.onStudioOverlayChange(this.value)" class="w-full accent-amber-500 cursor-pointer">
+                </div>
+              </div>
+            </div>
+
+            <!-- 4. لون الخط وتأثير الظلال (Typography) -->
+            <div class="p-3 bg-gray-900/90 rounded-2xl border border-gray-800 space-y-2">
+              <span class="font-bold text-gray-200 block">لون وظلال النصوص:</span>
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5">
+                  <button type="button" onclick="window.lotusApp.setStudioTextColor('white')" class="w-6 h-6 rounded-full bg-white border-2 ${studio.textColor === 'white' ? 'border-amber-400 scale-110' : 'border-transparent'}" title="أبيض"></button>
+                  <button type="button" onclick="window.lotusApp.setStudioTextColor('gold')" class="w-6 h-6 rounded-full bg-amber-400 border-2 ${studio.textColor === 'gold' ? 'border-white scale-110' : 'border-transparent'}" title="ذهبي"></button>
+                  <button type="button" onclick="window.lotusApp.setStudioTextColor('dark')" class="w-6 h-6 rounded-full bg-gray-900 border-2 ${studio.textColor === 'dark' ? 'border-amber-400 scale-110' : 'border-gray-600'}" title="داكن"></button>
+                </div>
+                <label class="flex items-center gap-1.5 cursor-pointer text-gray-300 font-bold select-none text-[11px]">
+                  <input type="checkbox" id="studio-shadow-checkbox" ${studio.textShadow ? 'checked' : ''} onchange="window.lotusApp.onStudioShadowChange(this.checked)" class="filter-checkbox-square">
+                  <span>تظليل النصوص (High Contrast)</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- 5. موضع وحجم الأزرار -->
+            <div class="p-3 bg-gray-900/90 rounded-2xl border border-gray-800 space-y-2">
+              <span class="font-bold text-gray-200 block">موضع وحجم الأزرار:</span>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[10px] text-gray-400 block mb-1">الموضع:</label>
+                  <select onchange="window.lotusApp.setStudioButtonsPos(this.value)" class="w-full p-1.5 rounded-lg bg-gray-950 border border-gray-700 text-gray-200 text-xs font-bold">
+                    <option value="start" ${studio.buttonsPosition === 'start' ? 'selected' : ''}>يمين (أسفل النص)</option>
+                    <option value="center" ${studio.buttonsPosition === 'center' ? 'selected' : ''}>وسط (توسيط)</option>
+                    <option value="end" ${studio.buttonsPosition === 'end' ? 'selected' : ''}>يسار</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-[10px] text-gray-400 block mb-1">الحجم:</label>
+                  <select onchange="window.lotusApp.setStudioBtnSize(this.value)" class="w-full p-1.5 rounded-lg bg-gray-950 border border-gray-700 text-gray-200 text-xs font-bold">
+                    <option value="normal" ${studio.primaryBtnSize === 'normal' ? 'selected' : ''}>قياسي</option>
+                    <option value="large" ${studio.primaryBtnSize === 'large' ? 'selected' : ''}>ملكي بارز</option>
+                    <option value="compact" ${studio.primaryBtnSize === 'compact' ? 'selected' : ''}>مدمج</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- 6. حالة النشر والجدولة الزمنية -->
+            <div class="p-3 bg-gray-900/90 rounded-2xl border border-gray-800 space-y-2">
+              <span class="font-bold text-gray-200 block">حالة النشر والظهور للزوار:</span>
+              <div class="space-y-1.5">
+                <label class="flex items-center gap-2 cursor-pointer text-gray-300">
+                  <input type="radio" name="studio-pub-status" value="published" ${studio.publishStatus === 'published' ? 'checked' : ''} onchange="window.lotusApp.setStudioPublishStatus('published')">
+                  <span class="font-bold text-emerald-400">● منشور الآن ومباشر للزوار</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-gray-300">
+                  <input type="radio" name="studio-pub-status" value="draft" ${studio.publishStatus === 'draft' ? 'checked' : ''} onchange="window.lotusApp.setStudioPublishStatus('draft')">
+                  <span class="font-bold text-amber-400">⏸️ حفظ كمسودة مخفية (غير معروض بالموقع)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer text-gray-300">
+                  <input type="radio" name="studio-pub-status" value="scheduled" ${studio.publishStatus === 'scheduled' ? 'checked' : ''} onchange="window.lotusApp.setStudioPublishStatus('scheduled')">
+                  <span class="font-bold text-blue-400">⏰ جدولة النشر بتاريخ ووقت محدد</span>
+                </label>
+              </div>
+
+              <div id="studio-scheduled-box" class="${studio.publishStatus === 'scheduled' ? '' : 'hidden'} pt-1">
+                <input type="datetime-local" id="studio-scheduled-input" value="${studio.scheduledAt || ''}" onchange="window.lotusApp.onStudioScheduleChange(this.value)" class="w-full p-1.5 rounded-lg bg-gray-950 border border-gray-700 text-gray-200 text-xs">
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- تذييل الاستوديو -->
+        <div class="flex items-center justify-between px-6 py-3 border-t border-gray-800 bg-gray-900">
+          <button type="button" onclick="window.lotusApp.closeMagazineStudio()" class="px-4 py-2 rounded-xl text-gray-400 hover:text-white font-bold">
+            إلغاء
+          </button>
+          <button type="button" onclick="window.lotusApp.applyStudioChangesToSlideForm()" class="px-7 py-2.5 rounded-xl btn-primary font-bold shadow flex items-center gap-2">
+            <i data-lucide="check-check" class="w-4 h-4"></i>
+            <span>حفظ وتطبيق التنسيق في الغلاف ✅</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    lucide.createIcons();
+    updateStudioCanvasPreview();
+  }
+
+  function closeMagazineStudio() {
+    closeModal('magazine-studio-modal');
+  }
+
+  function updateStudioCanvasPreview() {
+    const previewEl = document.getElementById('studio-canvas-preview');
+    if (!previewEl) return;
+
+    const studio = state.magazineStudio;
+    const title = document.getElementById('nms-title')?.value.trim() || 'صواني قراية الفاتحة والخطوبة الفاخرة';
+    const subtitle = document.getElementById('nms-subtitle')?.value.trim() || 'تنسيقات ملكية منتقاة بأجود زهور الجوري الطبيعي...';
+    const issue = document.getElementById('nms-issue')?.value.trim() || 'العدد الملكي • ربيع 2026';
+    const badge = document.getElementById('nms-badge')?.value.trim() || '';
+    const btn1Text = document.getElementById('nms-btn1-text')?.value.trim() || 'تسوق المجموعة';
+    const btn2Text = document.getElementById('nms-btn2-text')?.value.trim() || '';
+    const image = state.uploadedMagazineImage || document.getElementById('nms-image-url')?.value.trim() || 'assets/products/p01.jpg';
+
+    const isCustomBg = studio.bgType === 'custom' && !!studio.customBgImage;
+    const bgStyle = isCustomBg
+      ? `background-image: url('${studio.customBgImage}'); background-size: cover; background-position: center;`
+      : `background: ${getSlideThemeBackground(state.selectedMagazineTheme || 'burgundy')};`;
+
+    const isImgRight = state.selectedMagazineLayout === 'right';
+    const titleColor = studio.textColor === 'gold' ? '#fde047' : studio.textColor === 'dark' ? '#111827' : '#ffffff';
+    const textShadowStyle = studio.textShadow !== false ? 'text-shadow: 0 2px 10px rgba(0,0,0,0.85);' : '';
+
+    const btnJustify = studio.buttonsPosition === 'center' ? 'justify-center' : studio.buttonsPosition === 'end' ? 'justify-center md:justify-end' : 'justify-center md:justify-start';
+    const btnSizeClass = studio.primaryBtnSize === 'large' ? 'px-6 py-2.5 text-xs font-black' : studio.primaryBtnSize === 'compact' ? 'px-3.5 py-1.5 text-[11px]' : 'px-4 py-2 text-xs font-bold';
+
+    const scale = (studio.imageScale || 100) / 100;
+    const offsetX = studio.imageOffsetX || 0;
+    const offsetY = studio.imageOffsetY || 0;
+    const imgTransform = `transform: translate(${offsetX}px, ${offsetY}px) scale(${scale});`;
+
+    previewEl.innerHTML = `
+      <div class="relative overflow-hidden p-5 rounded-2xl text-white select-none transition-all duration-300" style="${bgStyle}; min-height: 360px;">
+        ${isCustomBg ? `
+          <div class="absolute inset-0 bg-black pointer-events-none" style="opacity: ${studio.customBgOverlay !== undefined ? studio.customBgOverlay : 0.45};"></div>
+        ` : `
+          <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1.2px,transparent_1.2px)] [background-size:16px_16px] pointer-events-none"></div>
+        `}
+
+        <div class="relative z-10 flex flex-col ${isImgRight ? 'md:flex-row-reverse' : 'md:flex-row'} items-center gap-5">
+          <!-- تفاصيل النصوص -->
+          <div class="flex-1 space-y-2.5 text-center ${isImgRight ? 'md:text-left' : 'md:text-right'}">
+            <div class="flex flex-wrap items-center justify-center ${isImgRight ? 'md:justify-start' : 'md:justify-start'} gap-1.5">
+              <span class="magazine-issue-badge text-[10px] py-0.5 px-2.5">${escapeHtml(issue)}</span>
+              ${badge ? `<span class="bg-amber-400 text-rose-950 text-[10px] font-black px-2 py-0.5 rounded shadow">${escapeHtml(badge)}</span>` : ''}
+            </div>
+
+            <h3 class="text-xl font-black font-amiri leading-tight" style="color: ${titleColor}; ${textShadowStyle}">
+              ${escapeHtml(title)}
+            </h3>
+
+            <p class="text-[11px] ${studio.textColor === 'dark' ? 'text-gray-800' : 'text-rose-100/90'} leading-relaxed" style="${textShadowStyle}">
+              ${escapeHtml(subtitle)}
+            </p>
+
+            <div class="flex flex-wrap items-center ${btnJustify} gap-2 pt-1">
+              ${btn1Text ? `
+                <div class="${btnSizeClass} rounded-xl btn-gold text-white font-black shadow flex items-center gap-1.5">
                   <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i>
                   <span>${escapeHtml(btn1Text)}</span>
                 </div>
@@ -3508,24 +3954,164 @@
             </div>
           </div>
 
-          <!-- صورة الغلاف -->
-          <div class="w-40 sm:w-48 shrink-0">
+          <!-- صورة الغلاف التفاعلية -->
+          <div class="w-36 sm:w-44 shrink-0">
             <div class="relative rounded-2xl overflow-hidden shadow-2xl aspect-[4/5] bg-gray-900 border-2 border-white/20">
-              <img src="${image}" alt="معاينة الغلاف" class="w-full h-full object-cover">
-              <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-3">
-                <span class="text-amber-300 text-[9px] font-bold block mb-0.5">زهور اللوتس • Lotus Flowers</span>
-                <span class="text-xs font-bold text-white font-amiri truncate block">${escapeHtml(title)}</span>
+              <img src="${image}" alt="صورة الاستوديو" class="w-full h-full object-cover transition-transform duration-200" style="${imgTransform}">
+              <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-2.5 pointer-events-none">
+                <span class="text-amber-300 text-[8px] font-bold block">زهور اللوتس</span>
+                <span class="text-[11px] font-bold text-white font-amiri truncate block" style="color: ${titleColor}; ${textShadowStyle}">${escapeHtml(title)}</span>
               </div>
             </div>
           </div>
         </div>
 
         <div class="absolute bottom-2 left-3 text-[9px] text-white/50 font-mono">
-          معاينة حية (${getThemeLabel(theme)} • ${isImgRight ? 'صورة يمين' : 'صورة يسار'})
+          Canvas: ${studio.imageScale}% scale | (${studio.imageOffsetX}px, ${studio.imageOffsetY}px)
         </div>
       </div>
     `;
     lucide.createIcons();
+  }
+
+  function nudgeStudioImage(dx, dy) {
+    state.magazineStudio.imageOffsetX = (state.magazineStudio.imageOffsetX || 0) + dx;
+    state.magazineStudio.imageOffsetY = (state.magazineStudio.imageOffsetY || 0) + dy;
+    updateStudioCanvasPreview();
+  }
+
+  function resetStudioImageTransform() {
+    state.magazineStudio.imageScale = 100;
+    state.magazineStudio.imageOffsetX = 0;
+    state.magazineStudio.imageOffsetY = 0;
+    const slider = document.getElementById('studio-scale-slider');
+    const label = document.getElementById('studio-scale-label');
+    if (slider) slider.value = 100;
+    if (label) label.textContent = '100%';
+    updateStudioCanvasPreview();
+    showToast('تمت إعادة ضبط الصورة للمركز والقياس الطبيعي 100%');
+  }
+
+  function onStudioScaleChange(val) {
+    const scale = parseInt(val, 10);
+    state.magazineStudio.imageScale = scale;
+    const label = document.getElementById('studio-scale-label');
+    if (label) label.textContent = `${scale}%`;
+    updateStudioCanvasPreview();
+  }
+
+  function setStudioLayout(pos) {
+    state.selectedMagazineLayout = pos;
+    updateLayoutButtonsVisual();
+    const btnLeft = document.getElementById('studio-layout-left');
+    const btnRight = document.getElementById('studio-layout-right');
+    if (btnLeft && btnRight) {
+      if (pos === 'right') {
+        btnRight.className = 'py-1.5 px-3 rounded-xl border text-center transition font-bold bg-amber-400 text-gray-950 border-amber-300';
+        btnLeft.className = 'py-1.5 px-3 rounded-xl border text-center transition font-bold bg-gray-800 text-gray-400 border-gray-700';
+      } else {
+        btnLeft.className = 'py-1.5 px-3 rounded-xl border text-center transition font-bold bg-amber-400 text-gray-950 border-amber-300';
+        btnRight.className = 'py-1.5 px-3 rounded-xl border text-center transition font-bold bg-gray-800 text-gray-400 border-gray-700';
+      }
+    }
+    updateStudioCanvasPreview();
+    updateMagazineLivePreview();
+  }
+
+  function setStudioBgMode(mode) {
+    state.magazineStudio.bgType = mode;
+    const btnTheme = document.getElementById('studio-bg-mode-theme');
+    const btnCustom = document.getElementById('studio-bg-mode-custom');
+    const controls = document.getElementById('studio-custom-bg-controls');
+    if (btnTheme && btnCustom) {
+      if (mode === 'custom') {
+        btnCustom.className = 'flex-1 py-1 px-2 rounded-lg font-bold border text-center bg-amber-400 text-gray-950 border-amber-300';
+        btnTheme.className = 'flex-1 py-1 px-2 rounded-lg font-bold border text-center bg-gray-800 text-gray-400 border-gray-700';
+        if (controls) controls.classList.remove('hidden');
+      } else {
+        btnTheme.className = 'flex-1 py-1 px-2 rounded-lg font-bold border text-center bg-amber-400 text-gray-950 border-amber-300';
+        btnCustom.className = 'flex-1 py-1 px-2 rounded-lg font-bold border text-center bg-gray-800 text-gray-400 border-gray-700';
+        if (controls) controls.classList.add('hidden');
+      }
+    }
+    updateStudioCanvasPreview();
+    updateMagazineLivePreview();
+  }
+
+  function handleStudioBgUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(evt) {
+      state.magazineStudio.customBgImage = evt.target.result;
+      const input = document.getElementById('studio-bg-url-input');
+      if (input) input.value = `assets/magazine/bg-${Date.now()}.jpg`;
+      updateStudioCanvasPreview();
+      updateMagazineLivePreview();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function onStudioBgUrlChange(val) {
+    state.magazineStudio.customBgImage = val.trim();
+    updateStudioCanvasPreview();
+    updateMagazineLivePreview();
+  }
+
+  function onStudioOverlayChange(val) {
+    const overlay = parseInt(val, 10) / 100;
+    state.magazineStudio.customBgOverlay = overlay;
+    const label = document.getElementById('studio-overlay-label');
+    if (label) label.textContent = `${Math.round(overlay * 100)}%`;
+    updateStudioCanvasPreview();
+    updateMagazineLivePreview();
+  }
+
+  function setStudioTextColor(color) {
+    state.magazineStudio.textColor = color;
+    updateStudioCanvasPreview();
+    updateMagazineLivePreview();
+  }
+
+  function onStudioShadowChange(checked) {
+    state.magazineStudio.textShadow = !!checked;
+    updateStudioCanvasPreview();
+    updateMagazineLivePreview();
+  }
+
+  function setStudioButtonsPos(pos) {
+    state.magazineStudio.buttonsPosition = pos;
+    updateStudioCanvasPreview();
+    updateMagazineLivePreview();
+  }
+
+  function setStudioBtnSize(size) {
+    state.magazineStudio.primaryBtnSize = size;
+    updateStudioCanvasPreview();
+    updateMagazineLivePreview();
+  }
+
+  function setStudioPublishStatus(status) {
+    state.magazineStudio.publishStatus = status;
+    const schedBox = document.getElementById('studio-scheduled-box');
+    if (schedBox) {
+      if (status === 'scheduled') schedBox.classList.remove('hidden');
+      else schedBox.classList.add('hidden');
+    }
+    updateStudioCanvasPreview();
+    updateMagazineLivePreview();
+  }
+
+  function onStudioScheduleChange(val) {
+    state.magazineStudio.scheduledAt = val;
+    updateStudioCanvasPreview();
+    updateMagazineLivePreview();
+  }
+
+  function applyStudioChangesToSlideForm() {
+    closeMagazineStudio();
+    updateMagazineLivePreview();
+    showToast('تم حفظ وتطبيق التنسيق من محرر الاستوديو بنجاح! 🎨✨');
   }
 
   function handleSaveMagazineSlide(e) {
@@ -3543,6 +4129,8 @@
     const theme = state.selectedMagazineTheme || 'burgundy';
     const layout = state.selectedMagazineLayout || 'left';
 
+    const studio = state.magazineStudio;
+
     if (!title) {
       showToast('يرجى إدخال عنوان الغلاف', 'error');
       return;
@@ -3550,28 +4138,44 @@
 
     if (!state.magazineSlides) state.magazineSlides = [];
 
+    const slideData = {
+      issue,
+      badge,
+      tag,
+      title,
+      subtitle,
+      btn1Text,
+      btn1Link,
+      primaryBtnText: btn1Text,
+      primaryBtnLink: btn1Link,
+      btn2Text,
+      btn2Link,
+      secondaryBtnText: btn2Text,
+      secondaryBtnLink: btn2Link,
+      image,
+      theme,
+      imagePosition: layout,
+      layout,
+      active: studio.publishStatus !== 'draft',
+      publishStatus: studio.publishStatus || 'published',
+      scheduledAt: studio.scheduledAt || '',
+      customBgImage: studio.customBgImage || null,
+      customBgOverlay: studio.customBgOverlay !== undefined ? studio.customBgOverlay : 0.45,
+      textColor: studio.textColor || 'white',
+      textShadow: studio.textShadow !== false,
+      imageScale: studio.imageScale || 100,
+      imageOffsetX: studio.imageOffsetX || 0,
+      imageOffsetY: studio.imageOffsetY || 0,
+      buttonsPosition: studio.buttonsPosition || 'start',
+      primaryBtnSize: studio.primaryBtnSize || 'normal'
+    };
+
     if (state.editingMagazineSlideIndex !== null && state.magazineSlides[state.editingMagazineSlideIndex]) {
       // تحديث شريحة موجودة
       const existing = state.magazineSlides[state.editingMagazineSlideIndex];
       state.magazineSlides[state.editingMagazineSlideIndex] = {
         ...existing,
-        issue,
-        badge,
-        tag,
-        title,
-        subtitle,
-        btn1Text,
-        btn1Link,
-        primaryBtnText: btn1Text,
-        primaryBtnLink: btn1Link,
-        btn2Text,
-        btn2Link,
-        secondaryBtnText: btn2Text,
-        secondaryBtnLink: btn2Link,
-        image,
-        theme,
-        imagePosition: layout,
-        layout
+        ...slideData
       };
       state.editingMagazineSlideIndex = null;
       showToast(`تم حفظ وتحديث غلاف المجلة "${title}" بنجاح! ✨`);
@@ -3579,27 +4183,10 @@
       // إضافة شريحة جديدة
       const newSlide = {
         id: `slide-${Date.now()}`,
-        issue,
-        badge,
-        tag,
-        title,
-        subtitle,
-        btn1Text,
-        btn1Link,
-        primaryBtnText: btn1Text,
-        primaryBtnLink: btn1Link,
-        btn2Text,
-        btn2Link,
-        secondaryBtnText: btn2Text,
-        secondaryBtnLink: btn2Link,
-        image,
-        theme,
-        imagePosition: layout,
-        layout,
-        active: true
+        ...slideData
       };
       state.magazineSlides.push(newSlide);
-      showToast(`تمت إضافة ونشر غلاف المجلة الجديد "${title}" بنجاح! ✨`);
+      showToast(`تمت إضافة غلاف المجلة الجديد "${title}" بنجاح! ✨`);
     }
 
     saveState('magazineSlides');
@@ -3740,10 +4327,27 @@
               </div>
 
               <!-- الزر التفاعلي الرئيسي مع خيارات جاهزة بدون كود -->
-              <div class="p-3.5 bg-amber-50/60 rounded-2xl border border-amber-200 space-y-2">
+              <div class="p-3.5 bg-amber-50/60 rounded-2xl border border-amber-200 space-y-2.5">
                 <div class="flex items-center justify-between">
                   <h6 class="font-bold text-rose-950">7. الزر التفاعلي الرئيسي (Primary Button):</h6>
                   <span class="text-[10px] text-amber-800 font-bold">كبسة زر واحدة تحدد الزر ورابطه تلقائياً</span>
+                </div>
+
+                <!-- قائمة منسدلة ذكية بالوجهات الجاهزة دون الحاجة لكتابة روابط -->
+                <div class="space-y-1">
+                  <label class="block text-[10px] font-bold text-gray-700">قائمة الوجهات الذكية الجاهزة (اختر وجهتك بضغطة زر دون كتابة):</label>
+                  <select onchange="window.lotusApp.applyMagazinePrimaryPreset(this.value)" class="w-full p-2 bg-white rounded-xl border border-amber-300 font-bold text-amber-950 text-xs focus:outline-none">
+                    <option value="">-- اختر توجيه الزر التلقائي الجاهز --</option>
+                    <option value="catalog">💐 كامل كتالوج وفهرس الباقات (#shop)</option>
+                    <option value="fatiha">💍 صواني قراية الفاتحة والخطوبة</option>
+                    <option value="love">❤️ باقات الحب والرومانسية</option>
+                    <option value="grad">🎓 باقات التخرج والنجاح</option>
+                    <option value="wedding">👰 مسكات وباقات العرائس</option>
+                    <option value="baby">🧸 باقات المولود الجديد والتهنئة</option>
+                    <option value="whatsapp">💬 طلب وتنسيق مخصوص عبر واتساب</option>
+                    <option value="location">📍 عنوان ومقر المتجر على Google Maps</option>
+                    <option value="smart_finder">⚡ المساعد الذكي لاختيار الهدية</option>
+                  </select>
                 </div>
                 
                 <div class="flex flex-wrap gap-1.5 pb-1">
@@ -3837,6 +4441,21 @@
                 </div>
               </div>
 
+              <!-- صندوق فتح محرر الاستوديو المرئي المباشر -->
+              <div class="p-3.5 bg-gradient-to-r from-amber-50 to-rose-50 rounded-2xl border border-amber-300 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div>
+                  <h6 class="font-bold text-rose-950 flex items-center gap-1.5">
+                    <i data-lucide="palette" class="w-4 h-4 text-amber-600"></i>
+                    <span>مساحة العمل والتنسيق التفاعلي (Studio Canvas):</span>
+                  </h6>
+                  <p class="text-[11px] text-gray-600 mt-0.5">تحريك وتكبير صورة الغلاف، خلفية صورة كاملة مع التعتيم، وتخصيص ظلال الخطوط والجدولة</p>
+                </div>
+                <button type="button" onclick="window.lotusApp.openMagazineStudio()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-600 hover:to-amber-500 text-rose-950 font-black text-xs shadow hover:shadow-md flex items-center gap-2 border border-amber-400 shrink-0">
+                  <i data-lucide="sparkles" class="w-4 h-4"></i>
+                  <span>فتح محرر الاستوديو 🎨</span>
+                </button>
+              </div>
+
               <!-- أزرار الحفظ والإلغاء -->
               <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
                 <button type="button" onclick="window.lotusApp.closeEditMagazineSlide()" class="px-4 py-2.5 rounded-xl text-gray-600 hover:bg-gray-100 font-bold">إلغاء</button>
@@ -3882,14 +4501,24 @@
                     <div class="flex items-center gap-1.5 mb-1.5 flex-wrap">
                       <span class="bg-rose-50 text-rose-900 border border-rose-100 px-2 py-0.5 rounded text-[10px] font-bold">${slide.issue || 'إصدار المجلة'}</span>
                       ${slide.badge ? `<span class="bg-amber-50 text-amber-900 border border-amber-100 px-2 py-0.5 rounded text-[10px] font-bold">${slide.badge}</span>` : ''}
-                      <span class="px-2 py-0.5 rounded text-[10px] font-bold ${slide.active !== false ? 'bg-emerald-50 text-emerald-800' : 'bg-gray-100 text-gray-500'}">
-                        ${slide.active !== false ? '● معروض الآن' : '○ متوقف'}
+                      <span class="px-2 py-0.5 rounded text-[10px] font-bold ${
+                        slide.publishStatus === 'draft' ? 'bg-amber-100 text-amber-900 border border-amber-200' :
+                        slide.publishStatus === 'scheduled' ? 'bg-blue-100 text-blue-900 border border-blue-200' :
+                        slide.active !== false ? 'bg-emerald-50 text-emerald-800' : 'bg-gray-100 text-gray-500'
+                      }">
+                        ${
+                          slide.publishStatus === 'draft' ? '⏸️ مسودة مخفية' :
+                          slide.publishStatus === 'scheduled' ? `⏰ مجدول (${slide.scheduledAt || 'محدد'})` :
+                          slide.active !== false ? '● معروض الآن' : '○ متوقف'
+                        }
                       </span>
                     </div>
 
                     <div class="flex items-center gap-1.5 flex-wrap mb-1 text-[10px] text-gray-500">
                       <span class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200">السمة: ${getThemeLabel(slide.theme)}</span>
                       <span class="px-1.5 py-0.5 rounded bg-gray-100 border border-gray-200">الصورة: ${isImgRight ? 'يمين' : 'يسار'}</span>
+                      ${slide.customBgImage ? '<span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-900 border border-amber-200 font-bold">خلفية صورة 🖼️</span>' : ''}
+                      ${slide.imageScale && slide.imageScale !== 100 ? `<span class="px-1.5 py-0.5 rounded bg-purple-50 text-purple-900 border border-purple-200 font-mono">تكبير ${slide.imageScale}%</span>` : ''}
                     </div>
 
                     <h5 class="font-bold text-gray-900 text-sm truncate">${slide.title}</h5>
@@ -5403,11 +6032,30 @@
             <p class="text-xs text-gray-500">لإرسال إشعارات واتساب تلقائية وسحب ونشر الباقات عبر إنستغرام وفيسبوك</p>
           </div>
           <span class="text-xs font-bold px-3 py-1 rounded-full ${
-            state.metaConfig.status === 'connected' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-700'
+            state.metaConfig.status === 'connected' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
+            state.metaConfig.status === 'error' ? 'bg-rose-100 text-rose-800 border border-rose-200' : 'bg-gray-200 text-gray-700'
           }">
-            الحالة: ${state.metaConfig.status === 'connected' ? 'متصل بنجاح ✅' : 'غير متصل'}
+            الحالة: ${
+              state.metaConfig.status === 'connected' ? 'متصل وموثق رسمياً ✅' :
+              state.metaConfig.status === 'error' ? 'فشل التحقق / غير صالح ❌' : 'غير متصل'
+            }
           </span>
         </div>
+
+        ${state.metaConfig.status === 'connected' && state.metaConfig.verifiedName ? `
+          <div class="mb-4 p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-900 text-xs flex items-center justify-between">
+            <div>
+              <strong>الحساب الموثق:</strong> ${state.metaConfig.verifiedName}
+              ${state.metaConfig.displayPhoneNumber ? ` | <strong>الرقم:</strong> ${state.metaConfig.displayPhoneNumber}` : ''}
+            </div>
+            <span class="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded font-bold">Meta Verified</span>
+          </div>
+        ` : ''}
+        ${state.metaConfig.status === 'error' && state.metaConfig.lastError ? `
+          <div class="mb-4 p-3 bg-rose-50 rounded-xl border border-rose-200 text-rose-900 text-xs">
+            <strong>تنبيه فحص Meta:</strong> ${state.metaConfig.lastError}
+          </div>
+        ` : ''}
 
         <form onsubmit="window.lotusApp.handleSaveMetaConfig(event)" class="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4 text-xs">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -5443,8 +6091,9 @@
           </div>
 
           <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-100">
-            <button type="button" onclick="window.lotusApp.testMetaConnection()" class="px-4 py-2 rounded-xl bg-blue-50 text-blue-900 hover:bg-blue-100 font-bold border border-blue-200">
-              اختبار الاتصال بـ Meta API
+            <button type="button" onclick="window.lotusApp.testMetaConnection()" class="px-4 py-2 rounded-xl bg-blue-50 text-blue-900 hover:bg-blue-100 font-bold border border-blue-200 flex items-center gap-1.5">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+              <span>فحص الاتصال الحقيقي بـ Meta API</span>
             </button>
 
             <button type="submit" class="px-6 py-2.5 rounded-xl btn-primary font-bold">
@@ -5469,18 +6118,124 @@
     showToast('تم حفظ إعدادات Meta Cloud API بنجاح');
   }
 
-  function testMetaConnection() {
-    showToast('جاري اختبار الاتصال بخوادم Meta Cloud API...', 'info');
-    setTimeout(() => {
-      state.metaConfig.status = 'connected';
+  async function testMetaConnection() {
+    const phoneId = (document.getElementById('meta-phone-id')?.value || state.metaConfig.phoneNumberId || '').trim();
+    const token = (document.getElementById('meta-token')?.value || state.metaConfig.accessToken || '').trim();
+    const wabaId = (document.getElementById('meta-waba-id')?.value || state.metaConfig.wabaId || '').trim();
+
+    if (!phoneId || !token) {
+      state.metaConfig.status = 'error';
+      state.metaConfig.lastError = 'يرجى إدخال معرف الهاتف (Phone Number ID) ورمز الدخول (Access Token)';
       saveState('metaConfig');
-      showToast('تم التحقق بنجاح: تم الربط مع WhatsApp Cloud API و Meta Graph ✅');
+      showToast('يرجى إدخال معرف رقم الهاتف (Phone Number ID) ورمز الدخول الدائم أولاً', 'error');
       renderCurrentPage();
-    }, 1200);
+      return;
+    }
+
+    if (!/^\d{10,25}$/.test(phoneId)) {
+      state.metaConfig.status = 'error';
+      state.metaConfig.lastError = 'معرف الهاتف (Phone Number ID) يجب أن يتكون من 10 إلى 25 رقماً فقط';
+      saveState('metaConfig');
+      showToast('فشل التحقق: معرف الهاتف غير صالح (يجب أن يتكون من 10 إلى 25 رقماً)', 'error');
+      renderCurrentPage();
+      return;
+    }
+
+    if (token.length < 30) {
+      state.metaConfig.status = 'error';
+      state.metaConfig.lastError = 'رمز الوصول (Access Token) قصير جداً أو غير مكتمل';
+      saveState('metaConfig');
+      showToast('فشل التحقق: رمز الوصول (Access Token) غير صالح أو قصير جداً', 'error');
+      renderCurrentPage();
+      return;
+    }
+
+    showToast('جاري الاتصال المباشر والتحقق مع خوادم Meta Graph API (v19.0)...', 'info');
+
+    try {
+      const response = await fetch(`https://graph.facebook.com/v19.0/${phoneId}?fields=verified_name,display_phone_number,quality_rating`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data && (data.verified_name || data.display_phone_number || data.id)) {
+        state.metaConfig.status = 'connected';
+        state.metaConfig.verifiedName = data.verified_name || 'Lotus Flowers EG';
+        state.metaConfig.displayPhoneNumber = data.display_phone_number || '';
+        state.metaConfig.qualityRating = data.quality_rating || 'GREEN';
+        state.metaConfig.lastError = null;
+        saveState('metaConfig');
+        showToast(`تم التحقق والربط بنجاح مع Meta! الحساب الموثق: ${data.verified_name || 'حساب واتساب تجاري'} ✅`, 'success');
+      } else {
+        const errMsg = data?.error?.message || (response.status === 401 ? 'رمز الوصول (Access Token) غير صالح أو منتهي الصلاحية' : `خطأ من Meta (${response.status})`);
+        state.metaConfig.status = 'error';
+        state.metaConfig.lastError = errMsg;
+        saveState('metaConfig');
+        showToast(`فشل التحقق من Meta: ${errMsg}`, 'error');
+      }
+    } catch (err) {
+      state.metaConfig.status = 'error';
+      state.metaConfig.lastError = err.message || 'تعذر الاتصال بالشبكة';
+      saveState('metaConfig');
+      showToast(`تعذر الاتصال بخوادم Meta: ${err.message || 'خطأ في الشبكة'}`, 'error');
+    }
+
+    renderCurrentPage();
+  }
+
+  // أمان ومقاومة التخمين لتسجيل الدخول (Rate Limiter & Brute-Force Defense)
+  const LOGIN_SECURITY = {
+    MAX_ATTEMPTS: 4,
+    LOCKOUT_MS: 60 * 1000,
+    STORAGE_KEY: 'lotus_login_security'
+  };
+
+  let loginCountdownTimer = null;
+
+  function getLoginSecurityState() {
+    try {
+      const raw = localStorage.getItem(LOGIN_SECURITY.STORAGE_KEY);
+      if (!raw) return { failedAttempts: 0, lockedUntil: 0 };
+      return JSON.parse(raw);
+    } catch {
+      return { failedAttempts: 0, lockedUntil: 0 };
+    }
+  }
+
+  function saveLoginSecurityState(secState) {
+    try {
+      localStorage.setItem(LOGIN_SECURITY.STORAGE_KEY, JSON.stringify(secState));
+    } catch (e) {
+      console.warn('Storage error:', e);
+    }
+  }
+
+  function resetLoginSecurityState() {
+    try {
+      localStorage.removeItem(LOGIN_SECURITY.STORAGE_KEY);
+      if (loginCountdownTimer) {
+        clearInterval(loginCountdownTimer);
+        loginCountdownTimer = null;
+      }
+    } catch (e) {}
   }
 
   // صفحة تسجيل الدخول الموحدة (Login Page)
   function renderLoginPage(container) {
+    if (loginCountdownTimer) {
+      clearInterval(loginCountdownTimer);
+      loginCountdownTimer = null;
+    }
+
+    const secState = getLoginSecurityState();
+    const now = Date.now();
+    const isLocked = !!(secState.lockedUntil && secState.lockedUntil > now);
+    const remainingSec = isLocked ? Math.ceil((secState.lockedUntil - now) / 1000) : 0;
+
     container.innerHTML = `
       <div class="max-w-md mx-auto px-4 py-16">
         <div class="bg-white p-8 rounded-3xl border border-gray-200 shadow-sm text-xs">
@@ -5492,18 +6247,32 @@
             <p class="text-gray-500 mt-1">أدخل رقم هاتفك وكلمة المرور لمتابعة طلباتك أو إدارة المتجر</p>
           </div>
 
+          <!-- شريط تنبيه القفل الزمني لمقاومة التخمين -->
+          <div id="login-lockout-banner" class="${isLocked ? '' : 'hidden'} mb-4 p-4 rounded-2xl bg-rose-50 border border-rose-300 text-rose-950">
+            <div class="flex items-center gap-2 font-bold text-xs mb-1">
+              <i data-lucide="shield-alert" class="w-4 h-4 text-rose-700"></i>
+              <span>تم إيقاف محاولات الدخول مؤقتاً لحماية المتجر</span>
+            </div>
+            <p class="text-[11px] text-rose-900/90 leading-relaxed mb-2">
+              بسبب تكرار إدخال كلمة مرور غير صحيحة، تم تفعيل القفل الأمني التلقائي. يرجى الانتظار:
+            </p>
+            <div class="text-center py-1 bg-white/80 rounded-xl border border-rose-200 font-mono text-base font-black text-rose-950">
+              <span id="login-lockout-countdown">${remainingSec}</span> ثانية متبقية
+            </div>
+          </div>
+
           <form onsubmit="window.lotusApp.handleLogin(event)" class="space-y-4">
             <div>
               <label class="block font-semibold mb-1">رقم الهاتف *</label>
-              <input type="text" id="login-phone" required placeholder="01xxxxxxxxx أو رقم دولي" class="w-full p-2.5 rounded-xl border border-gray-300">
+              <input type="text" id="login-phone" required ${isLocked ? 'disabled' : ''} placeholder="01xxxxxxxxx أو رقم دولي" class="w-full p-2.5 rounded-xl border border-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed">
             </div>
 
             <div>
               <label class="block font-semibold mb-1">كلمة المرور *</label>
-              <input type="password" id="login-pass" required placeholder="••••••••" class="w-full p-2.5 rounded-xl border border-gray-300">
+              <input type="password" id="login-pass" required ${isLocked ? 'disabled' : ''} placeholder="••••••••" class="w-full p-2.5 rounded-xl border border-gray-300 disabled:bg-gray-100 disabled:cursor-not-allowed">
             </div>
 
-            <button type="submit" class="w-full py-3 rounded-xl btn-primary font-bold text-sm shadow">
+            <button type="submit" id="login-submit-btn" ${isLocked ? 'disabled' : ''} class="w-full py-3 rounded-xl btn-primary font-bold text-sm shadow disabled:opacity-50 disabled:cursor-not-allowed">
               دخول الحساب
             </button>
           </form>
@@ -5511,15 +6280,53 @@
       </div>
     `;
     lucide.createIcons();
+
+    if (isLocked && remainingSec > 0) {
+      loginCountdownTimer = setInterval(() => {
+        const currentSecState = getLoginSecurityState();
+        const curNow = Date.now();
+        const curRemaining = currentSecState.lockedUntil ? Math.ceil((currentSecState.lockedUntil - curNow) / 1000) : 0;
+        const countdownEl = document.getElementById('login-lockout-countdown');
+
+        if (curRemaining <= 0) {
+          clearInterval(loginCountdownTimer);
+          loginCountdownTimer = null;
+          resetLoginSecurityState();
+          showToast('انتهت مهلة الانتظار الأمني، يمكنك الآن تسجيل الدخول', 'info');
+          renderLoginPage(container);
+        } else if (countdownEl) {
+          countdownEl.textContent = curRemaining;
+        }
+      }, 1000);
+    }
   }
 
   function handleLogin(e) {
     e.preventDefault();
-    const phone = document.getElementById('login-phone').value.trim();
-    const pass = document.getElementById('login-pass').value;
+
+    const secState = getLoginSecurityState();
+    const now = Date.now();
+    if (secState.lockedUntil && secState.lockedUntil > now) {
+      const remainingSec = Math.ceil((secState.lockedUntil - now) / 1000);
+      showToast(`النظام مقفل مؤقتاً لحماية المتجر. يرجى الانتظار ${remainingSec} ثانية`, 'error');
+      return;
+    }
+
+    const phoneRaw = document.getElementById('login-phone')?.value || '';
+    const passRaw = document.getElementById('login-pass')?.value || '';
+
+    // تعقيم وتطهير المدخلات من الأكواد الخبيثة
+    const phone = phoneRaw.trim().replace(/[<>'"/\\;]/g, '');
+    const pass = passRaw;
+
+    if (!phone || !pass) {
+      showToast('يرجى إدخال رقم الهاتف وكلمة المرور', 'error');
+      return;
+    }
 
     const user = state.users.find(u => u.phone === phone && u.pass === pass);
     if (user) {
+      resetLoginSecurityState();
       state.currentUser = user;
       saveState('currentUser');
       showToast(`مرحباً بك يا ${user.name} 🌸`);
@@ -5530,7 +6337,17 @@
         navigateTo('#shop');
       }
     } else {
-      showToast('بيانات الدخول غير صحيحة، يرجى التأكد من الرقم وكلمة المرور', 'error');
+      secState.failedAttempts = (secState.failedAttempts || 0) + 1;
+      if (secState.failedAttempts >= LOGIN_SECURITY.MAX_ATTEMPTS) {
+        secState.lockedUntil = Date.now() + LOGIN_SECURITY.LOCKOUT_MS;
+        saveLoginSecurityState(secState);
+        showToast('تم تجاوز عدد المحاولات المسموحة (4 محاولات). تم قفل تسجيل الدخول مؤقتاً لمدة 60 ثانية لحماية حسابات المتجر!', 'error');
+        renderCurrentPage();
+      } else {
+        saveLoginSecurityState(secState);
+        const remaining = LOGIN_SECURITY.MAX_ATTEMPTS - secState.failedAttempts;
+        showToast(`بيانات الدخول غير صحيحة. متبقي ${remaining} محاولات قبل القفل الأمني المؤقت`, 'error');
+      }
     }
   }
 
@@ -5764,6 +6581,7 @@
     selectCardSize,
     quickAddToCart,
     toggleFilter,
+    toggleFilterDrawer,
     setPriceRange,
     setSortBy,
     resetFilters,
@@ -5782,7 +6600,7 @@
     handleUpdateProduct,
     handleNewProductCategoryCheck,
 
-    // مجلة المتجر وسلايدر الرئيسية
+    // مجلة المتجر وسلايدر الرئيسية واستوديو التنسيق المرئي
     magazineNext,
     magazinePrev,
     magazineGoTo,
@@ -5794,6 +6612,7 @@
     openEditMagazineSlide,
     closeEditMagazineSlide,
     applyMagazinePresetButton,
+    applyMagazinePrimaryPreset,
     applyMagazinePresetSecondary,
     applyMagazinePresetBadge,
     applyMagazinePresetIssue,
@@ -5801,6 +6620,25 @@
     setMagazineImagePosition,
     selectMagazineQuickImage,
     updateMagazineLivePreview,
+
+    // محرر استوديو مساحة العمل التفاعلي (Magazine Studio Canvas)
+    openMagazineStudio,
+    closeMagazineStudio,
+    nudgeStudioImage,
+    resetStudioImageTransform,
+    onStudioScaleChange,
+    setStudioLayout,
+    setStudioBgMode,
+    handleStudioBgUpload,
+    onStudioBgUrlChange,
+    onStudioOverlayChange,
+    setStudioTextColor,
+    onStudioShadowChange,
+    setStudioButtonsPos,
+    setStudioBtnSize,
+    setStudioPublishStatus,
+    onStudioScheduleChange,
+    applyStudioChangesToSlideForm,
 
     // معرض صور وأعمال إنستغرام الحقيقية
     toggleNewShowcaseForm,
