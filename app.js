@@ -129,6 +129,32 @@
     saveState('storeInfo');
   }
 
+  // ضمان تهيئة وإسناد خصائص المخزون والظهور لجميع الباقات تلقائياً
+  if (state.products && state.products.length > 0) {
+    let hasUpdatedProds = false;
+    state.products = state.products.map(p => {
+      let updated = false;
+      const copy = { ...p };
+      if (!copy.stockType) {
+        copy.stockType = 'unlimited';
+        updated = true;
+      }
+      if (copy.stockType === 'quantity' && typeof copy.stockQuantity !== 'number') {
+        copy.stockQuantity = 10;
+        updated = true;
+      }
+      if (typeof copy.visible !== 'boolean') {
+        copy.visible = true;
+        updated = true;
+      }
+      if (updated) hasUpdatedProds = true;
+      return copy;
+    });
+    if (hasUpdatedProds) {
+      saveState('products');
+    }
+  }
+
   // مساعدات استخراج المعرف والاسم للتصنيفات والخصائص
   function getAttrId(item) {
     if (!item) return '';
@@ -956,9 +982,27 @@
       return;
     }
 
+    if (product.visible === false && !state.currentUser) {
+      container.innerHTML = `
+        <div class="py-20 text-center">
+          <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400">
+            <i data-lucide="eye-off" class="w-8 h-8"></i>
+          </div>
+          <h3 class="text-xl font-bold text-gray-800">هذه الباقة غير معروضة حالياً</h3>
+          <p class="text-xs text-gray-500 mt-1 mb-4">قام المتجر بإخفاء هذه الباقة مؤقتاً لتحديث تشكيلتها أو نفاد الموسم.</p>
+          <a href="#shop" class="inline-block px-5 py-2 rounded-xl bg-rose-950 text-white text-xs font-bold">تصفح باقي الباقات المتوفرة</a>
+        </div>
+      `;
+      lucide.createIcons();
+      return;
+    }
+
     state.viewingProduct = product;
     state.selectedSizeIndex = 0;
+    detailQty = 1;
     const currentSize = product.sizes && product.sizes.length > 0 ? product.sizes[0] : { name: 'حجم قياسي', price: 500 };
+    const isOutOfStock = product.stockType === 'out_of_stock' || (product.stockType === 'quantity' && (typeof product.stockQuantity === 'number' && product.stockQuantity <= 0));
+    const isLowStock = !isOutOfStock && product.stockType === 'quantity' && (typeof product.stockQuantity === 'number' && product.stockQuantity <= 5);
 
     container.innerHTML = `
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -970,14 +1014,41 @@
             <span class="absolute top-4 right-4 bg-rose-950 text-white font-mono text-xs font-bold px-3 py-1 rounded-lg shadow">
               كود: ${product.sku}
             </span>
+            ${isOutOfStock ? `
+              <span class="absolute top-4 left-4 bg-red-600 text-white text-xs font-bold px-3 py-1 rounded-lg shadow flex items-center gap-1">
+                <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
+                <span>نفدت الكمية 🚫</span>
+              </span>
+            ` : (product.badge ? `
+              <span class="absolute top-4 left-4 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-lg shadow">
+                ${product.badge}
+              </span>
+            ` : '')}
           </div>
 
           <!-- تفاصيل الباقة واختيار الأحجام -->
           <div class="flex flex-col justify-between">
             <div>
-              <div class="flex items-center gap-2 mb-2">
+              <div class="flex items-center gap-2 mb-2 flex-wrap">
                 <span class="bg-rose-50 text-rose-900 text-xs font-bold px-3 py-1 rounded-full">${product.category}</span>
                 <span class="text-xs text-gray-500 font-medium">${product.flowerType || 'ورد طبيعي'}</span>
+                
+                ${isOutOfStock ? `
+                  <span class="bg-red-50 text-red-700 border border-red-200 text-xs font-bold px-3 py-0.5 rounded-full flex items-center gap-1">
+                    <i data-lucide="alert-circle" class="w-3.5 h-3.5"></i>
+                    <span>غير متوفرة حالياً (نفدت الكمية)</span>
+                  </span>
+                ` : isLowStock ? `
+                  <span class="bg-amber-50 text-amber-900 border border-amber-200 text-xs font-bold px-3 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
+                    <i data-lucide="flame" class="w-3.5 h-3.5 text-amber-600"></i>
+                    <span>متبقي في المخزن ${product.stockQuantity} قطع فقط! 🔥</span>
+                  </span>
+                ` : `
+                  <span class="bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold px-3 py-0.5 rounded-full flex items-center gap-1">
+                    <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-600"></i>
+                    <span>متوفر للتجهيز والتوصيل السريع</span>
+                  </span>
+                `}
               </div>
 
               <h1 class="text-2xl sm:text-3xl font-black text-gray-900 mb-3">${product.name}</h1>
@@ -1025,16 +1096,23 @@
 
             <!-- أزرار الإضافة للسلة والطلب -->
             <div class="pt-4 border-t border-gray-100 flex items-center gap-3">
-              <div class="flex items-center border border-gray-300 rounded-xl overflow-hidden bg-gray-50">
-                <button onclick="window.lotusApp.adjustDetailQty(-1)" class="px-3 py-2 text-gray-600 hover:bg-gray-200">-</button>
-                <span id="detail-qty" class="px-3 text-sm font-bold text-gray-800">1</span>
-                <button onclick="window.lotusApp.adjustDetailQty(1)" class="px-3 py-2 text-gray-600 hover:bg-gray-200">+</button>
-              </div>
+              ${isOutOfStock ? `
+                <button disabled class="flex-1 py-3.5 px-6 rounded-xl bg-gray-200 text-gray-500 font-bold text-sm flex items-center justify-center gap-2 cursor-not-allowed shadow-none">
+                  <i data-lucide="slash" class="w-4 h-4"></i>
+                  <span>هذه الباقة غير متوفرة حالياً (نفدت الكمية) 🚫</span>
+                </button>
+              ` : `
+                <div class="flex items-center border border-gray-300 rounded-xl overflow-hidden bg-gray-50">
+                  <button onclick="window.lotusApp.adjustDetailQty(-1)" class="px-3 py-2 text-gray-600 hover:bg-gray-200">-</button>
+                  <span id="detail-qty" class="px-3 text-sm font-bold text-gray-800">1</span>
+                  <button onclick="window.lotusApp.adjustDetailQty(1)" class="px-3 py-2 text-gray-600 hover:bg-gray-200">+</button>
+                </div>
 
-              <button onclick="window.lotusApp.addCurrentDetailToCart()" class="flex-1 py-3.5 px-6 rounded-xl btn-primary font-bold text-sm shadow-md flex items-center justify-center gap-2">
-                <i data-lucide="shopping-bag" class="w-4 h-4"></i>
-                <span>إضافة الباقة إلى السلة</span>
-              </button>
+                <button onclick="window.lotusApp.addCurrentDetailToCart()" class="flex-1 py-3.5 px-6 rounded-xl btn-primary font-bold text-sm shadow-md flex items-center justify-center gap-2">
+                  <i data-lucide="shopping-bag" class="w-4 h-4"></i>
+                  <span>إضافة الباقة إلى السلة</span>
+                </button>
+              `}
             </div>
 
           </div>
@@ -1047,7 +1125,13 @@
 
   let detailQty = 1;
   function adjustDetailQty(delta) {
-    detailQty = Math.max(1, detailQty + delta);
+    if (!state.viewingProduct) return;
+    const p = state.viewingProduct;
+    let maxQty = 99;
+    if (p.stockType === 'quantity' && typeof p.stockQuantity === 'number') {
+      maxQty = Math.max(1, p.stockQuantity);
+    }
+    detailQty = Math.max(1, Math.min(maxQty, detailQty + delta));
     const el = document.getElementById('detail-qty');
     if (el) el.textContent = detailQty;
   }
@@ -1075,6 +1159,16 @@
   function addCurrentDetailToCart() {
     if (!state.viewingProduct) return;
     const p = state.viewingProduct;
+    const isOutOfStock = p.stockType === 'out_of_stock' || (p.stockType === 'quantity' && (typeof p.stockQuantity === 'number' && p.stockQuantity <= 0));
+    if (isOutOfStock) {
+      showToast('عذراً، هذه الباقة غير متوفرة حالياً ونفدت الكمية 🚫');
+      return;
+    }
+    if (p.stockType === 'quantity' && typeof p.stockQuantity === 'number' && detailQty > p.stockQuantity) {
+      showToast(`عذراً، أقصى كمية متوفرة في المخزن هي ${p.stockQuantity} قطعة فقط ⚠️`);
+      return;
+    }
+
     const chosenSize = p.sizes && p.sizes[state.selectedSizeIndex] ? p.sizes[state.selectedSizeIndex] : { name: 'قياسي', price: 500 };
     const cardMsg = document.getElementById('product-card-msg')?.value || '';
     const isAnon = document.getElementById('product-card-anon')?.checked || false;
@@ -1130,6 +1224,13 @@
   function quickAddToCart(productId) {
     const prod = state.products.find(p => p.id === productId);
     if (!prod) return;
+
+    const isOutOfStock = prod.stockType === 'out_of_stock' || (prod.stockType === 'quantity' && (typeof prod.stockQuantity === 'number' && prod.stockQuantity <= 0));
+    if (isOutOfStock) {
+      showToast('عذراً، هذه الباقة غير متوفرة حالياً ونفدت الكمية 🚫');
+      return;
+    }
+
     const sizeIdx = state.selectedCardSizes[productId] || 0;
     const chosenSize = prod.sizes && prod.sizes[sizeIdx] ? prod.sizes[sizeIdx] : (prod.sizes && prod.sizes[0] ? prod.sizes[0] : { name: 'قياسي', price: 500 });
 
@@ -1171,6 +1272,8 @@
     return productsList.map(p => {
       const selectedIdx = state.selectedCardSizes[p.id] || 0;
       const currentSize = p.sizes && p.sizes[selectedIdx] ? p.sizes[selectedIdx] : (p.sizes && p.sizes[0] ? p.sizes[0] : { name: 'قياسي', price: 500 });
+      const isOutOfStock = p.stockType === 'out_of_stock' || (p.stockType === 'quantity' && (typeof p.stockQuantity === 'number' && p.stockQuantity <= 0));
+      const isLowStock = !isOutOfStock && p.stockType === 'quantity' && (typeof p.stockQuantity === 'number' && p.stockQuantity <= 5);
 
       return `
         <div class="product-card bg-white rounded-3xl overflow-hidden flex flex-col justify-between border border-gray-200 shadow-sm" id="product-card-${p.id}">
@@ -1181,11 +1284,16 @@
             <span class="absolute top-3 right-3 bg-rose-950/90 backdrop-blur-sm text-white font-mono text-[10px] font-bold px-2.5 py-1 rounded-lg shadow">
               كود: ${p.sku}
             </span>
-            ${p.badge ? `
+            ${isOutOfStock ? `
+              <span class="absolute top-3 left-3 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg shadow flex items-center gap-1">
+                <i data-lucide="alert-circle" class="w-3 h-3"></i>
+                <span>نفدت الكمية 🚫</span>
+              </span>
+            ` : (p.badge ? `
               <span class="absolute top-3 left-3 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg shadow">
                 ${p.badge}
               </span>
-            ` : ''}
+            ` : '')}
           </div>
 
           <!-- تفاصيل الباقة -->
@@ -1203,9 +1311,18 @@
                 ${p.name}
               </h3>
 
-              <p class="text-[11px] text-gray-500 line-clamp-2 mb-2 leading-relaxed">
+              <p class="text-[11px] text-gray-500 line-clamp-2 mb-1 leading-relaxed">
                 ${p.description}
               </p>
+
+              ${isLowStock ? `
+                <div class="mb-2">
+                  <span class="text-[10px] text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md font-bold inline-flex items-center gap-1">
+                    <i data-lucide="flame" class="w-3 h-3 text-amber-600"></i>
+                    <span>متبقي ${p.stockQuantity} قطع فقط! 🔥</span>
+                  </span>
+                </div>
+              ` : ''}
 
               <!-- عرض أسعار جميع الأحجام المتاحة بنقرة مباشرة -->
               <div class="my-2 p-2 rounded-xl bg-gray-50 border border-gray-100">
@@ -1242,10 +1359,17 @@
                 <a href="#product/${p.id}" class="p-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 transition" title="عرض التفاصيل وكارت الإهداء">
                   <i data-lucide="eye" class="w-4 h-4"></i>
                 </a>
-                <button type="button" onclick="window.lotusApp.quickAddToCart('${p.id}')" class="px-3 py-2 rounded-xl btn-primary font-bold text-xs shadow flex items-center gap-1.5 transition">
-                  <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i>
-                  <span>أضف للسلة</span>
-                </button>
+                ${isOutOfStock ? `
+                  <button type="button" disabled class="px-3 py-2 rounded-xl bg-gray-100 text-gray-400 font-bold text-xs flex items-center gap-1.5 cursor-not-allowed border border-gray-200" title="هذه الباقة غير متوفرة حالياً">
+                    <i data-lucide="slash" class="w-3.5 h-3.5"></i>
+                    <span>نفدت الكمية</span>
+                  </button>
+                ` : `
+                  <button type="button" onclick="window.lotusApp.quickAddToCart('${p.id}')" class="px-3 py-2 rounded-xl btn-primary font-bold text-xs shadow flex items-center gap-1.5 transition">
+                    <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i>
+                    <span>أضف للسلة</span>
+                  </button>
+                `}
               </div>
             </div>
 
@@ -1258,6 +1382,8 @@
   // تصفية المنتجات المتقدمة مع دعم الاختيار المتعدد
   function getFilteredProducts() {
     let list = state.products.filter(p => {
+      // إخفاء المنتجات المعطلة أو المخفية عن الزوار
+      if (p.visible === false || p.active === false) return false;
       // 1. فلاتر المناسبات والتصنيفات (Multi-select)
       if (state.filters.categories.length > 0) {
         const matchesCat = state.filters.categories.includes(p.category) ||
@@ -1802,6 +1928,22 @@
 
     state.orders.unshift(newOrder);
     saveState('orders');
+
+    // خصم الكميات من المخزون للباقات ذات الكميات المحددة تلقائياً
+    let hasStockUpdate = false;
+    state.cart.forEach(cartItem => {
+      const prod = state.products.find(p => p.id === cartItem.id || p.sku === cartItem.sku);
+      if (prod && prod.stockType === 'quantity' && typeof prod.stockQuantity === 'number') {
+        prod.stockQuantity = Math.max(0, prod.stockQuantity - (cartItem.qty || 1));
+        if (prod.stockQuantity === 0) {
+          prod.stockType = 'out_of_stock';
+        }
+        hasStockUpdate = true;
+      }
+    });
+    if (hasStockUpdate) {
+      saveState('products');
+    }
 
     state.cart = [];
     saveState('cart');
@@ -2762,6 +2904,44 @@
               </div>
             </div>
 
+            <!-- إدارة المخزون والكميات والظهور في المتجر -->
+            <div class="p-3 bg-gray-50 rounded-xl border border-gray-200">
+              <div class="flex items-center justify-between mb-2">
+                <label class="block font-bold text-gray-900">إدارة المخزون والكميات والظهور في المتجر:</label>
+                <label class="flex items-center gap-1.5 text-xs font-bold text-gray-800 cursor-pointer bg-white px-2.5 py-1 rounded-lg border border-gray-200 hover:border-rose-300">
+                  <input type="checkbox" id="np-visible" checked class="w-4 h-4 rounded text-rose-900 focus:ring-rose-800">
+                  <span>عرض الباقة في المتجر والواجهة الرئيسية 👁️</span>
+                </label>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
+                <label class="flex items-center gap-2 p-2.5 rounded-xl border bg-white cursor-pointer hover:bg-rose-50 transition">
+                  <input type="radio" name="np-stock-type" value="unlimited" checked onchange="window.lotusApp.toggleNewProductStockQty(this.value)" class="text-rose-900">
+                  <div>
+                    <span class="font-bold text-xs block text-gray-900">كمية غير محدودة ♾️</span>
+                    <span class="text-[10px] text-gray-500">تحضير طازج عند الطلب</span>
+                  </div>
+                </label>
+                <label class="flex items-center gap-2 p-2.5 rounded-xl border bg-white cursor-pointer hover:bg-rose-50 transition">
+                  <input type="radio" name="np-stock-type" value="quantity" onchange="window.lotusApp.toggleNewProductStockQty(this.value)" class="text-rose-900">
+                  <div>
+                    <span class="font-bold text-xs block text-gray-900">كمية محددة بالمخزن 🔢</span>
+                    <span class="text-[10px] text-gray-500">تحديد عدد القطع المتوفرة</span>
+                  </div>
+                </label>
+                <label class="flex items-center gap-2 p-2.5 rounded-xl border bg-white cursor-pointer hover:bg-rose-50 transition">
+                  <input type="radio" name="np-stock-type" value="out_of_stock" onchange="window.lotusApp.toggleNewProductStockQty(this.value)" class="text-rose-900">
+                  <div>
+                    <span class="font-bold text-xs block text-red-600">نفدت الكمية 🚫</span>
+                    <span class="text-[10px] text-gray-500">إيقاف البيع مؤقتاً</span>
+                  </div>
+                </label>
+              </div>
+              <div id="np-stock-qty-container" class="hidden mt-2 p-2.5 bg-white rounded-xl border border-rose-200">
+                <label class="block font-bold text-gray-800 mb-1">الكمية المتوفرة بالمخزن (عدد القطع) *:</label>
+                <input type="number" id="np-stock-qty" min="0" value="10" placeholder="مثال: 5 أو 10 قطع" class="w-full p-2 rounded-lg border border-gray-300 font-bold">
+              </div>
+            </div>
+
             <div>
               <label class="block font-semibold mb-1">وصف الباقة ومكوناتها</label>
               <textarea id="np-desc" rows="2" placeholder="اكتب مكونات الورد والتغليف..." class="w-full p-2.5 rounded-xl border border-gray-300"></textarea>
@@ -2774,59 +2954,115 @@
           </form>
         </div>
 
-        <!-- جدول المنتجات الحالية مع زر التعديل والحذف -->
+        <!-- جدول المنتجات الحالية مع زر التعديل والحذف والتحكم السريع بالمخزون والظهور -->
         <div class="bg-white rounded-3xl border border-gray-200 overflow-hidden shadow-sm text-xs">
           <table class="w-full text-right">
             <thead class="bg-gray-50 border-b border-gray-200 text-gray-600">
               <tr>
                 <th class="p-3">الكود</th>
                 <th class="p-3">الباقة</th>
-                <th class="p-3">التصنيف</th>
+                <th class="p-3">التصنيف والظهور</th>
+                <th class="p-3">المخزون والتوفر</th>
                 <th class="p-3">الأحجام والأسعار المتوفرة</th>
                 <th class="p-3 text-left">إجراءات التحكم</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
-              ${state.products.map(p => `
-                <tr class="hover:bg-gray-50 transition">
-                  <td class="p-3 font-mono font-bold text-rose-950">${p.sku}</td>
-                  <td class="p-3 flex items-center gap-3">
-                    <img src="${p.image}" alt="${p.name}" class="w-10 h-10 rounded-xl object-cover border border-gray-200">
-                    <div>
-                      <span class="font-bold text-gray-900 block">${p.name}</span>
-                      <span class="text-[10px] text-gray-400 font-medium">
-                        ${(p.flowerTypes && p.flowerTypes.length > 0) ? p.flowerTypes.join(' + ') : (p.flowerType || 'ورد طبيعي')} 
-                        • 
-                        ${(p.colors && p.colors.length > 0) ? p.colors.join('، ') : (p.color || '')}
-                      </span>
-                    </div>
-                  </td>
-                  <td class="p-3">
-                    <div class="flex flex-wrap gap-1">
-                      ${((p.categories && p.categories.length > 0) ? p.categories : [p.category]).map(c => `
-                        <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-md font-semibold text-[11px]">${c}</span>
-                      `).join('')}
-                    </div>
-                  </td>
-                  <td class="p-3">
-                    <div class="flex flex-wrap gap-1">
-                      ${(p.sizes || []).map(s => `<span class="bg-rose-50 text-rose-950 border border-rose-100 px-2 py-0.5 rounded text-[11px]">${s.name}: <strong>${s.price} ج.م</strong></span>`).join('')}
-                    </div>
-                  </td>
-                  <td class="p-3 text-left">
-                    <div class="flex items-center gap-1.5 justify-end">
-                      <button onclick="window.lotusApp.openEditProductModal('${p.id}')" class="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold flex items-center gap-1 border border-amber-200 transition" title="تعديل بيانات الباقة والأسعار">
-                        <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
-                        <span>تعديل</span>
-                      </button>
-                      <button onclick="window.lotusApp.deleteProduct('${p.id}')" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold flex items-center gap-1 border border-rose-200 transition" title="حذف الباقة">
-                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                        <span>حذف</span>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              `).join('')}
+              ${state.products.map(p => {
+                const isOutOfStock = p.stockType === 'out_of_stock' || (p.stockType === 'quantity' && (typeof p.stockQuantity === 'number' && p.stockQuantity <= 0));
+                return `
+                  <tr class="hover:bg-gray-50 transition">
+                    <td class="p-3 font-mono font-bold text-rose-950">${p.sku}</td>
+                    <td class="p-3 flex items-center gap-3">
+                      <img src="${p.image}" alt="${p.name}" class="w-10 h-10 rounded-xl object-cover border border-gray-200">
+                      <div>
+                        <span class="font-bold text-gray-900 block">${p.name}</span>
+                        <span class="text-[10px] text-gray-400 font-medium">
+                          ${(p.flowerTypes && p.flowerTypes.length > 0) ? p.flowerTypes.join(' + ') : (p.flowerType || 'ورد طبيعي')} 
+                          • 
+                          ${(p.colors && p.colors.length > 0) ? p.colors.join('، ') : (p.color || '')}
+                        </span>
+                      </div>
+                    </td>
+                    <td class="p-3">
+                      <div class="flex flex-col gap-1.5">
+                        <div class="flex flex-wrap gap-1">
+                          ${((p.categories && p.categories.length > 0) ? p.categories : [p.category]).map(c => `
+                            <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-md font-semibold text-[11px]">${c}</span>
+                          `).join('')}
+                        </div>
+                        <div>
+                          ${p.visible !== false ? `
+                            <span class="bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-md font-bold text-[10px] inline-flex items-center gap-1">
+                              <i data-lucide="eye" class="w-3 h-3 text-emerald-600"></i>
+                              <span>معروض بالمتجر</span>
+                            </span>
+                          ` : `
+                            <span class="bg-gray-100 text-gray-500 border border-gray-300 px-2 py-0.5 rounded-md font-bold text-[10px] inline-flex items-center gap-1">
+                              <i data-lucide="eye-off" class="w-3 h-3 text-gray-400"></i>
+                              <span>مخفي عن الزوار</span>
+                            </span>
+                          `}
+                        </div>
+                      </div>
+                    </td>
+                    <td class="p-3">
+                      ${isOutOfStock ? `
+                        <span class="bg-red-50 text-red-700 border border-red-200 px-2 py-1 rounded-md font-bold text-[11px] inline-flex items-center gap-1">
+                          <i data-lucide="alert-circle" class="w-3.5 h-3.5 text-red-500"></i>
+                          <span>نفدت الكمية (0)</span>
+                        </span>
+                      ` : (p.stockType === 'quantity') ? `
+                        <div class="flex flex-col gap-0.5">
+                          <span class="bg-amber-50 text-amber-900 border border-amber-200 px-2 py-1 rounded-md font-bold text-[11px] inline-flex items-center gap-1">
+                            <i data-lucide="package" class="w-3.5 h-3.5 text-amber-600"></i>
+                            <span>متبقي: <strong>${p.stockQuantity}</strong> قطع</span>
+                          </span>
+                          ${p.stockQuantity <= 5 ? '<span class="text-[9px] text-amber-700 font-bold">مخزون منخفض 🔥</span>' : ''}
+                        </div>
+                      ` : `
+                        <span class="bg-blue-50 text-blue-800 border border-blue-200 px-2 py-1 rounded-md font-bold text-[11px] inline-flex items-center gap-1">
+                          <i data-lucide="infinity" class="w-3.5 h-3.5 text-blue-600"></i>
+                          <span>كمية غير محدودة</span>
+                        </span>
+                      `}
+                    </td>
+                    <td class="p-3">
+                      <div class="flex flex-wrap gap-1">
+                        ${(p.sizes || []).map(s => `<span class="bg-rose-50 text-rose-950 border border-rose-100 px-2 py-0.5 rounded text-[11px]">${s.name}: <strong>${s.price} ج.م</strong></span>`).join('')}
+                      </div>
+                    </td>
+                    <td class="p-3 text-left">
+                      <div class="flex items-center gap-1.5 justify-end flex-wrap">
+                        <!-- تبديل الظهور بنقرة واحدة -->
+                        <button type="button" onclick="window.lotusApp.toggleProductVisibility('${p.id}')" class="px-2 py-1.5 rounded-lg border font-bold flex items-center gap-1 transition ${
+                          p.visible !== false ? 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
+                        }" title="${p.visible !== false ? 'إخفاء الباقة عن المتجر والزوار' : 'إظهار الباقة في المتجر للزوار'}">
+                          <i data-lucide="${p.visible !== false ? 'eye-off' : 'eye'}" class="w-3.5 h-3.5"></i>
+                          <span>${p.visible !== false ? 'إخفاء' : 'إظهار'}</span>
+                        </button>
+
+                        <!-- تبديل التوفر بنقرة واحدة -->
+                        <button type="button" onclick="window.lotusApp.toggleProductStockStatus('${p.id}')" class="px-2 py-1.5 rounded-lg border font-bold flex items-center gap-1 transition ${
+                          isOutOfStock ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-red-50 hover:bg-red-100 text-red-700 border-red-200'
+                        }" title="${isOutOfStock ? 'إعادة توفير الباقة بالمتجر' : 'تعيين الباقة كنفدت الكمية'}">
+                          <i data-lucide="${isOutOfStock ? 'check' : 'slash'}" class="w-3.5 h-3.5"></i>
+                          <span>${isOutOfStock ? 'توفير' : 'نفاد'}</span>
+                        </button>
+
+                        <button type="button" onclick="window.lotusApp.openEditProductModal('${p.id}')" class="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold flex items-center gap-1 border border-amber-200 transition" title="تعديل بيانات الباقة والأسعار والمخزون">
+                          <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                          <span>تعديل</span>
+                        </button>
+                        <button type="button" onclick="window.lotusApp.deleteProduct('${p.id}')" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold flex items-center gap-1 border border-rose-200 transition" title="حذف الباقة">
+                          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                          <span>حذف</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
             </tbody>
           </table>
         </div>
@@ -2992,6 +3228,10 @@
 
     if (sizes.length === 0) sizes.push({ name: 'حجم قياسي', price: 500 });
 
+    const stockType = document.querySelector('input[name="np-stock-type"]:checked')?.value || 'unlimited';
+    const stockQuantity = stockType === 'quantity' ? Math.max(0, parseInt(document.getElementById('np-stock-qty')?.value || '10', 10)) : (stockType === 'out_of_stock' ? 0 : null);
+    const visible = document.getElementById('np-visible')?.checked !== false;
+
     const newProd = {
       id: `prod-${sku.toLowerCase()}-${Date.now()}`,
       sku: sku,
@@ -3006,6 +3246,9 @@
       badge: 'جديد',
       description: desc || 'باقة ورد طبيعي منتقاة من زهور اللوتس بعناية فائقة.',
       sizes: sizes,
+      stockType: stockType,
+      stockQuantity: stockQuantity,
+      visible: visible,
       tags: Array.from(new Set([...categories, ...colors, ...flowerTypes]))
     };
 
@@ -3161,6 +3404,44 @@
             </div>
           </div>
 
+          <!-- إدارة المخزون والكميات والظهور في المتجر للباقة -->
+          <div class="p-3 bg-gray-50 rounded-xl border border-gray-200">
+            <div class="flex items-center justify-between mb-2">
+              <label class="block font-bold text-gray-900">إدارة المخزون وحالة الظهور في المتجر:</label>
+              <label class="flex items-center gap-1.5 text-xs font-bold text-gray-800 cursor-pointer bg-white px-2.5 py-1 rounded-lg border border-gray-200 hover:border-rose-300">
+                <input type="checkbox" id="ep-visible" ${prod.visible !== false ? 'checked' : ''} class="w-4 h-4 rounded text-rose-900 focus:ring-rose-800">
+                <span>عرض الباقة في المتجر والواجهة الرئيسية 👁️</span>
+              </label>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-2">
+              <label class="flex items-center gap-2 p-2.5 rounded-xl border bg-white cursor-pointer hover:bg-rose-50 transition">
+                <input type="radio" name="ep-stock-type" value="unlimited" ${(prod.stockType || 'unlimited') === 'unlimited' ? 'checked' : ''} onchange="window.lotusApp.toggleEditProductStockQty(this.value)" class="text-rose-900">
+                <div>
+                  <span class="font-bold text-xs block text-gray-900">كمية غير محدودة ♾️</span>
+                  <span class="text-[10px] text-gray-500">تحضير طازج عند الطلب</span>
+                </div>
+              </label>
+              <label class="flex items-center gap-2 p-2.5 rounded-xl border bg-white cursor-pointer hover:bg-rose-50 transition">
+                <input type="radio" name="ep-stock-type" value="quantity" ${prod.stockType === 'quantity' ? 'checked' : ''} onchange="window.lotusApp.toggleEditProductStockQty(this.value)" class="text-rose-900">
+                <div>
+                  <span class="font-bold text-xs block text-gray-900">كمية محددة بالمخزن 🔢</span>
+                  <span class="text-[10px] text-gray-500">تحديد عدد القطع المتوفرة</span>
+                </div>
+              </label>
+              <label class="flex items-center gap-2 p-2.5 rounded-xl border bg-white cursor-pointer hover:bg-rose-50 transition">
+                <input type="radio" name="ep-stock-type" value="out_of_stock" ${(prod.stockType === 'out_of_stock' || (prod.stockType === 'quantity' && (typeof prod.stockQuantity === 'number' && prod.stockQuantity <= 0))) ? 'checked' : ''} onchange="window.lotusApp.toggleEditProductStockQty(this.value)" class="text-rose-900">
+                <div>
+                  <span class="font-bold text-xs block text-red-600">نفدت الكمية 🚫</span>
+                  <span class="text-[10px] text-gray-500">إيقاف البيع مؤقتاً</span>
+                </div>
+              </label>
+            </div>
+            <div id="ep-stock-qty-container" class="${prod.stockType === 'quantity' ? '' : 'hidden'} mt-2 p-2.5 bg-white rounded-xl border border-rose-200">
+              <label class="block font-bold text-gray-800 mb-1">الكمية المتوفرة بالمخزن (عدد القطع) *:</label>
+              <input type="number" id="ep-stock-qty" min="0" value="${typeof prod.stockQuantity === 'number' ? prod.stockQuantity : 10}" placeholder="مثال: 5 أو 10 قطع" class="w-full p-2 rounded-lg border border-gray-300 font-bold">
+            </div>
+          </div>
+
           <div>
             <label class="block font-bold mb-1">وصف وتفاصيل الباقة ومكوناتها:</label>
             <textarea id="ep-desc" rows="3" class="w-full p-2.5 rounded-xl border border-gray-300">${prod.description || ''}</textarea>
@@ -3280,6 +3561,10 @@
 
     if (sizes.length === 0) sizes.push({ name: 'حجم قياسي', price: 500 });
 
+    const stockType = document.querySelector('input[name="ep-stock-type"]:checked')?.value || 'unlimited';
+    const stockQuantity = stockType === 'quantity' ? Math.max(0, parseInt(document.getElementById('ep-stock-qty')?.value || '10', 10)) : (stockType === 'out_of_stock' ? 0 : null);
+    const visible = document.getElementById('ep-visible')?.checked !== false;
+
     // تحديث بيانات الباقة
     prod.category = categories[0];
     prod.categories = categories;
@@ -3293,6 +3578,9 @@
     prod.image = imgUrl;
     prod.description = desc;
     prod.sizes = sizes;
+    prod.stockType = stockType;
+    prod.stockQuantity = stockQuantity;
+    prod.visible = visible;
     prod.tags = Array.from(new Set([...categories, ...colors, ...flowerTypes]));
 
     saveState('products');
@@ -3311,6 +3599,54 @@
     saveState('products');
     showToast('تم حذف الباقة بنجاح');
     renderCurrentPage();
+  }
+
+  // تبديل حالة ظهور المنتج بالمتجر للزوار بنقرة واحدة
+  function toggleProductVisibility(productId) {
+    const p = state.products.find(item => item.id === productId);
+    if (!p) return;
+    p.visible = (p.visible === false) ? true : false;
+    saveState('products');
+    showToast(p.visible ? `تم إظهار باقة "${p.name}" في المتجر للزوار 👁️` : `تم إخفاء باقة "${p.name}" عن الزوار بنجاح 👁️‍🗨️`);
+    renderCurrentPage();
+  }
+
+  // تبديل حالة المخزون والتوفر بنقرة واحدة (متوفر / نفدت الكمية)
+  function toggleProductStockStatus(productId) {
+    const p = state.products.find(item => item.id === productId);
+    if (!p) return;
+    const isOut = p.stockType === 'out_of_stock' || (p.stockType === 'quantity' && (typeof p.stockQuantity === 'number' && p.stockQuantity <= 0));
+    if (isOut) {
+      p.stockType = 'unlimited';
+      p.stockQuantity = null;
+      showToast(`تم تغيير حالة باقة "${p.name}" إلى: متوفر (كمية غير محدودة) 🟢`);
+    } else {
+      p.stockType = 'out_of_stock';
+      p.stockQuantity = 0;
+      showToast(`تم تعيين باقة "${p.name}" إلى: نفدت الكمية 🔴`);
+    }
+    saveState('products');
+    renderCurrentPage();
+  }
+
+  function toggleNewProductStockQty(val) {
+    const container = document.getElementById('np-stock-qty-container');
+    if (!container) return;
+    if (val === 'quantity') {
+      container.classList.remove('hidden');
+    } else {
+      container.classList.add('hidden');
+    }
+  }
+
+  function toggleEditProductStockQty(val) {
+    const container = document.getElementById('ep-stock-qty-container');
+    if (!container) return;
+    if (val === 'quantity') {
+      container.classList.remove('hidden');
+    } else {
+      container.classList.add('hidden');
+    }
   }
 
   // ==================== إدارة مجلة المتجر وسلايدر الرئيسية ====================
@@ -6592,13 +6928,17 @@
     searchOrders,
     advanceOrderStatus,
 
-    // نظام تعديل المنتجات الحالية المطور
+    // نظام تعديل المنتجات الحالية المطور والتحكم بالمخزون والظهور
     openEditProductModal,
     closeEditProductModal,
     addEditSizeRow,
     handleEditProductImageUpload,
     handleUpdateProduct,
     handleNewProductCategoryCheck,
+    toggleProductVisibility,
+    toggleProductStockStatus,
+    toggleNewProductStockQty,
+    toggleEditProductStockQty,
 
     // مجلة المتجر وسلايدر الرئيسية واستوديو التنسيق المرئي
     magazineNext,
